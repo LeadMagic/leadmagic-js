@@ -1,0 +1,41 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "extends": [
+    "ultracite/biome/core",
+    "ultracite/biome/react",
+    "ultracite/biome/next"
+  ],
+  "files": {
+    "includes": [
+      "!**/dist",
+      "!**/.next",
+      "!**/node_modules",
+      "!**/next-env.d.ts",
+      "!public/r"
+    ]
+  },
+  "overrides": [
+    {
+      // Copied into users' projects, where @/components and leadmagic resolve.
+      "includes": [
+        "registry/**",
+        "examples/next-signup/components/email-field.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "correctness": { "noUndeclaredDependencies": "off" },
+          "performance": { "noJsxPropsBind": "off" }
+        }
+      }
+    },
+    {
+      "includes": ["packages/*/test/**"],
+      "linter": {
+        "rules": {
+          "performance": { "useTopLevelRegex": "off" },
+          "suspicious": { "useAwait": "off" }
+        }
+      }
+    }
+  ]
+}

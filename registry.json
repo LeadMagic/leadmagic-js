@@ -1,0 +1,21 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "leadmagic",
+  "homepage": "https://leadmagic.io/docs/sdk",
+  "items": [
+    {
+      "name": "email-field",
+      "type": "registry:component",
+      "title": "Email field",
+      "description": "An email input that checks deliverability with LeadMagic on blur. Needs the leadmagic/next route handler.",
+      "dependencies": ["leadmagic"],
+      "registryDependencies": ["input", "label"],
+      "files": [
+        {
+          "path": "registry/email-field.tsx",
+          "type": "registry:component"
+        }
+      ]
+    }
+  ]
+}
