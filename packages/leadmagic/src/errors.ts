@@ -230,8 +230,8 @@ function text(value: unknown): string | undefined {
 
 /**
  * The Problem Details object in an error body. The API puts it at the top
- * level with `errors[]` beside it; the Sandbox and some older paths only send
- * `errors[0]`; a few internal paths nest it under `error`. All are accepted.
+ * level with `errors[]` beside it. A body that only has `errors[0]`, or that
+ * nests the object under `error`, is read the same way.
  */
 function problemObject(body: Obj | undefined): Obj | undefined {
   if (!body) {

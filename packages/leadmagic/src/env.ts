@@ -57,11 +57,6 @@ function truthy(value: string | undefined): boolean {
   return value === "1" || value?.toLowerCase() === "true";
 }
 
-/** Shows the last four characters only, never the key. */
-export function maskKey(key: string): string {
-  return key.length > 8 ? `…${key.slice(-4)}` : "…";
-}
-
 export interface ResolveOptions {
   apiKey?: string;
   baseUrl?: string;

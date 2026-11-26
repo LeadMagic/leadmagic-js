@@ -14,7 +14,7 @@ export function SignupForm() {
   if (state.ok) {
     return (
       <p className="text-sm" role="status">
-        Thanks. We sent a confirmation to {state.email}.
+        Thanks. {state.email} is on the list.
       </p>
     );
   }

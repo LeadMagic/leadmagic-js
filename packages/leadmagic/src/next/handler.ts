@@ -227,8 +227,9 @@ function notify(
  *
  * The route is reachable by anyone who loads your page, so it only answers
  * same-origin requests, returns `{ verdict, roleBased }` and nothing else,
- * caches per email, caps how many checks it makes, and fails open: when LeadMagic is slow, rate limited or
- * out of credits, it answers `unknown` and your signup goes through.
+ * caches per email, caps how many checks it makes, and fails open: when
+ * LeadMagic is slow, rate limited or out of credits, it answers `unknown`
+ * and your signup goes through.
  */
 export function createValidateEmailHandler(
   options: ValidateEmailHandlerOptions = {}

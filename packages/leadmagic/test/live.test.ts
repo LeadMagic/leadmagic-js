@@ -1,6 +1,6 @@
 /**
  * Runs against the real API with LEADMAGIC_API_KEY (`pnpm test:live`). Catches
- * gateway changes the Sandbox and the spec miss. Costs at most 0.25 credits a run.
+ * API changes that the Sandbox does not show. Costs at most 0.25 credits a run.
  */
 import { describe, expect, it } from "vitest";
 import { createClient } from "../src/index";
