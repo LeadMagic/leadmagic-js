@@ -1,12 +1,14 @@
 name: Release
 
 # On main: pending changesets open or refresh the version PR. Merging that PR
-# publishes the new version to npm with trusted publishing (OIDC, no token)
-# and provenance, then tags it.
+# stages the new version on npm with trusted publishing (OIDC, no token) and
+# provenance, then tags it. A staged version is not installable: a maintainer
+# reviews it on npmjs.com (Staged Packages) and approves it with 2FA.
 #
-# The job that can publish installs nothing and runs no project code. It only
+# The job that talks to npm installs nothing and runs no project code. It only
 # uploads the tarball that the build job checked and packed, so a compromised
-# dev dependency never runs next to the publishing identity.
+# dev dependency never runs next to the publishing identity. Even then, this
+# workflow cannot release on its own: npm only lets it stage.
 on:
   push:
     branches: [ main ]
@@ -47,6 +49,9 @@ jobs:
             echo 'pending=true' >> "$GITHUB_OUTPUT"
           elif npm view "leadmagic@$version" version >/dev/null 2>&1; then
             echo "leadmagic@$version is already on npm" >> "$GITHUB_STEP_SUMMARY"
+          elif git ls-remote --exit-code --tags origin "refs/tags/leadmagic@$version" >/dev/null 2>&1; then
+            # Tagged but not on npm: it was staged and is waiting for approval.
+            echo "leadmagic@$version is staged on npm and waiting for approval" >> "$GITHUB_STEP_SUMMARY"
           else
             echo 'publish=true' >> "$GITHUB_OUTPUT"
           fi
@@ -120,7 +125,7 @@ jobs:
           retention-days: 7
 
   publish:
-    name: Publish to npm
+    name: Stage on npm
     needs: [ plan, build ]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -139,8 +144,17 @@ jobs:
         with:
           name: package
           path: pack
-      - name: Publish
-        run: npm publish pack/*.tgz --provenance --access public
+      - name: npm can stage?
+        run: |
+          # `npm stage publish` needs npm 11.15 or later, which ships with Node 24.
+          version=$(npm --version)
+          echo "npm $version"
+          if [[ "$(printf '%s\n' 11.15.0 "$version" | sort -V | head -n1)" != "11.15.0" ]]; then
+            echo "::error::npm $version is too old to stage a release (needs 11.15.0 or later)."
+            exit 1
+          fi
+      - name: Stage
+        run: npm stage publish pack/*.tgz --provenance --access public
       - name: Tag
         env:
           GH_TOKEN: ${{ github.token }}
@@ -148,4 +162,7 @@ jobs:
         run: |
           gh api "repos/$GITHUB_REPOSITORY/git/refs" \
             -f "ref=refs/tags/leadmagic@$VERSION" -f "sha=$GITHUB_SHA"
-          echo "Published leadmagic@$VERSION" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "Staged leadmagic@$VERSION."
+            echo "Approve it on npmjs.com under Staged Packages to release it."
+          } >> "$GITHUB_STEP_SUMMARY"
