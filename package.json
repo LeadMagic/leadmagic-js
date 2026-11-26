@@ -4,7 +4,7 @@
   "scripts": {
     "build": "pnpm -F leadmagic build",
     "changeset": "changeset",
-    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm check:package",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm check:package",
     "check:package": "pnpm -F leadmagic check:package",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
@@ -12,7 +12,7 @@
     "release": "pnpm build && changeset publish",
     "test": "pnpm -F leadmagic test",
     "test:contract": "pnpm -F leadmagic test:contract",
-    "typecheck": "pnpm -r typecheck",
+    "typecheck": "pnpm build && pnpm -r typecheck",
     "version-packages": "changeset version"
   },
   "devDependencies": {
