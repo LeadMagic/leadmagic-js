@@ -1,6 +1,6 @@
 import type { LeadMagicClient, LeadMagicOptions } from "../client";
 import { createClient } from "../client";
-import { readEnv } from "../env";
+import { readEnv, stripTrailingSlashes } from "../env";
 import { isLeadMagicError, LeadMagicError } from "../errors";
 import type { EmailVerdict } from "../resources/email";
 import { clientIp, WindowCounter } from "./rate-limit";
@@ -32,6 +32,12 @@ export interface ValidateEmailHandlerOptions {
   cache?: false | { max?: number; ttlMs?: number };
   /** A client or client options. Defaults to `LEADMAGIC_API_KEY` from the environment. */
   client?: LeadMagicClient | LeadMagicOptions;
+  /**
+   * What to do when LeadMagic cannot answer (slow, rate limited, out of
+   * credits). `true` (default) answers `unknown` so the signup goes through.
+   * `false` answers 503 so your form can decide.
+   */
+  failOpen?: boolean;
   /** Called after every answer, for logging or analytics. Never awaited. */
   onResult?: (event: ValidateEmailEvent) => void;
   /**
@@ -50,8 +56,18 @@ export interface ValidateEmailHandlerOptions {
    * counts, so add `protect` for a hard limit. `false` turns the caps off.
    */
   rateLimit?: false | { perIp?: number; total?: number; windowMs?: number };
+  /**
+   * Return `true` to answer `unknown` for an address without calling
+   * LeadMagic, e.g. for your own domain or one you already trust.
+   */
+  skip?: (email: string) => boolean | Promise<boolean>;
   /** Longest the form waits for LeadMagic before answering `unknown`. Default 8000 ms. */
   timeoutMs?: number;
+  /**
+   * `strict` reports addresses that were only rejected by policy as
+   * `unknown` (free) instead of `undeliverable`. Default `legacy`.
+   */
+  verificationPolicy?: "legacy" | "strict";
 }
 
 const MAX_BODY_BYTES = 2048;
@@ -66,7 +82,6 @@ const BASE_HEADERS = {
   "cache-control": "no-store",
   "x-content-type-options": "nosniff",
 };
-const TRAILING_SLASHES = /\/+$/u;
 
 function json(
   body: unknown,
@@ -111,7 +126,7 @@ export function isAllowedOrigin(
     return true;
   }
   return allowedOrigins.some(
-    (allowed) => allowed.replace(TRAILING_SLASHES, "") === origin
+    (allowed) => stripTrailingSlashes(allowed) === origin
   );
 }
 
@@ -297,8 +312,7 @@ export function createValidateEmailHandler(
       loggedConfigError = true;
       console.error(`[leadmagic] ${error.message}`);
     }
-    notify(options, { email, verdict: "unknown", error, cached: false });
-    return json(UNKNOWN, 200);
+    return unanswered(email, error);
   }
 
   // Which cap a request is over, if any. The visitor's own cap is checked
@@ -316,14 +330,16 @@ export function createValidateEmailHandler(
       : "route_limit_total";
   }
 
-  // Anything on our side: never block a signup.
-  function failOpen(email: string, error: LeadMagicError): Response {
+  // LeadMagic gave no verdict. By default the signup is never blocked.
+  function unanswered(email: string, error: LeadMagicError): Response {
     notify(options, { email, verdict: "unknown", error, cached: false });
-    return json(
-      UNKNOWN,
-      200,
-      isDev() ? { "x-leadmagic-error": error.code } : {}
-    );
+    const headers: Record<string, string> = isDev()
+      ? { "x-leadmagic-error": error.code }
+      : {};
+    if (options.failOpen === false) {
+      return json({ error: "Email validation is unavailable." }, 503, headers);
+    }
+    return json(UNKNOWN, 200, headers);
   }
 
   function answer(
@@ -347,6 +363,16 @@ export function createValidateEmailHandler(
       return email;
     }
 
+    if (await options.skip?.(email)) {
+      notify(options, {
+        email,
+        verdict: "unknown",
+        error: null,
+        cached: false,
+      });
+      return json(UNKNOWN, 200);
+    }
+
     const key = email.toLowerCase();
     const cached = cache?.get(key);
     if (cached) {
@@ -361,7 +387,7 @@ export function createValidateEmailHandler(
 
     const reason = overLimit(request);
     if (reason) {
-      return failOpen(
+      return unanswered(
         email,
         new LeadMagicError({
           code: "rate_limit_exceeded",
@@ -384,7 +410,10 @@ export function createValidateEmailHandler(
       return configFailure(email, error);
     }
 
-    const result = await lm.validateEmail(email, { timeoutMs });
+    const result = await lm.validateEmail(email, {
+      timeoutMs,
+      verificationPolicy: options.verificationPolicy,
+    });
     if (!result.error) {
       return answer(email, key, {
         verdict: result.data.verdict,
@@ -395,6 +424,6 @@ export function createValidateEmailHandler(
     if (result.error.kind === "invalid_input") {
       return answer(email, key, { verdict: "undeliverable", roleBased: false });
     }
-    return failOpen(email, result.error);
+    return unanswered(email, result.error);
   };
 }

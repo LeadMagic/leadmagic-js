@@ -122,6 +122,19 @@ describe("key safety", () => {
     );
   });
 
+  it("drops trailing slashes from the base URL, however many", async () => {
+    const mock = mockFetch({ body: VALID_EMAIL_BODY });
+    const client = createClient({
+      apiKey: KEY,
+      baseUrl: `https://proxy.example.com/lm${"/".repeat(50_000)}`,
+      fetch: mock.fetch,
+    });
+    await client.validateEmail("ada@stripe.com");
+    expect(mock.calls[0]?.url).toBe(
+      "https://proxy.example.com/lm/v1/people/email-validation"
+    );
+  });
+
   it("allows https anywhere and http on this machine", () => {
     for (const baseUrl of [
       "https://proxy.example.com/lm",
