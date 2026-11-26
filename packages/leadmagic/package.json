@@ -1,6 +1,6 @@
 {
   "name": "leadmagic",
-  "version": "0.3.0",
+  "version": "0.2.0",
   "description": "LeadMagic for JavaScript: email validation and company lookup from your server, with a Next.js route handler and a React hook for forms.",
   "keywords": [
     "leadmagic",
@@ -45,6 +45,7 @@
     "build": "tsdown",
     "check:package": "publint && attw --pack . --profile esm-only && size-limit",
     "test": "vitest run",
+    "test:contract": "LEADMAGIC_CONTRACT=1 vitest run test/contract.test.ts",
     "test:live": "LEADMAGIC_LIVE=1 vitest run test/live.test.ts",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"

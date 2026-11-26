@@ -103,6 +103,7 @@ export async function findCompanyWith(
       meta: {
         status: 0,
         requestId: undefined,
+        sandbox: config.sandbox,
         credits: { consumed: 0, remaining: undefined },
         rateLimit: { limit: undefined, remaining: undefined, reset: undefined },
       },

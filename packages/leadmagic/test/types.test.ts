@@ -54,7 +54,7 @@ describe("public types", () => {
       findCompany
     ).returns.resolves.toEqualTypeOf<FindCompanyResult>();
     expectTypeOf(getCredits).returns.resolves.toEqualTypeOf<GetCreditsResult>();
-    const client = createClient({ apiKey: "lm_live_types" });
+    const client = createClient({ sandbox: true });
     expectTypeOf(
       client.validateEmail
     ).returns.resolves.toEqualTypeOf<ValidateEmailResult>();
