@@ -13,11 +13,10 @@ You need Node.js 20 or later and [pnpm](https://pnpm.io).
 ```bash
 pnpm install
 pnpm check            # lint, typecheck, tests, build and package checks
-pnpm test:contract    # the SDK against the public Sandbox (needs the network)
 pnpm -F next-signup-example dev
 ```
 
-No API key is needed: the tests use a mock `fetch`, and the example runs on the Sandbox.
+The tests use a mock `fetch` and need no API key. The example needs `LEADMAGIC_API_KEY` in `examples/next-signup/.env.local`.
 
 ## Send a change
 
@@ -26,7 +25,7 @@ No API key is needed: the tests use a mock `fetch`, and the example runs on the 
 3. If the change affects the published package, run `pnpm changeset` and describe it in one or two sentences. That text becomes the changelog entry.
 4. Open a pull request.
 
-After changing `registry/email-field.tsx`, run `pnpm registry:build` so the example and the published registry file stay in step.
+After changing `registry/email-field.tsx`, run `pnpm registry:build` so the example and `public/r/email-field.json` stay in step.
 
 ## Releases
 

@@ -1,27 +1,13 @@
 import type { ResolvedConfig } from "./env";
-import { isBrowser } from "./env";
 import type { LeadMagicError } from "./errors";
 import { clientError, errorFromResponse } from "./errors";
 import { VERSION } from "./version";
-
-/** Sandbox outcomes; see https://leadmagic.io/playground. */
-export type SandboxOutcome =
-  | "found"
-  | "empty"
-  | "400"
-  | "401"
-  | "402"
-  | "404"
-  | "429"
-  | "500";
 
 export interface RequestOptions {
   /** Same key on retries of one logical call; generated when omitted. */
   idempotencyKey?: string;
   /** Overrides the client's `maxRetries` for this call. */
   maxRetries?: number;
-  /** Sandbox only: force an outcome to test your error handling. */
-  sandboxOutcome?: SandboxOutcome;
   signal?: AbortSignal;
   /** Overall budget for this call, retries included. */
   timeoutMs?: number;
@@ -44,8 +30,6 @@ export interface ResponseMeta {
   rateLimit: RateLimitInfo;
   /** Quote this to support. */
   requestId: string | undefined;
-  /** True when the answer came from the Sandbox (synthetic data). */
-  sandbox: boolean;
   /** HTTP status, or 0 when no response was received. */
   status: number;
 }
@@ -73,21 +57,16 @@ function num(value: string | null): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
-function emptyMeta(sandbox: boolean): ResponseMeta {
+function emptyMeta(): ResponseMeta {
   return {
     status: 0,
     requestId: undefined,
-    sandbox,
     credits: { consumed: undefined, remaining: undefined },
     rateLimit: { limit: undefined, remaining: undefined, reset: undefined },
   };
 }
 
-function metaFrom(
-  response: Response,
-  sandbox: boolean,
-  body: unknown
-): ResponseMeta {
+function metaFrom(response: Response, body: unknown): ResponseMeta {
   const h = response.headers;
   const bodyCredits =
     body && typeof body === "object" && "credits_consumed" in body
@@ -96,7 +75,6 @@ function metaFrom(
   return {
     status: response.status,
     requestId: h.get("x-request-id") ?? undefined,
-    sandbox: sandbox || h.get("x-sandbox") === "true",
     credits: {
       consumed:
         num(h.get("x-credits-consumed")) ??
@@ -200,25 +178,18 @@ function buildHeaders(
   if (body !== undefined) {
     headers["content-type"] = "application/json";
   }
-  if (config.apiKey) {
-    headers["x-api-key"] = config.apiKey;
-  }
-  if (!isBrowser()) {
-    headers["user-agent"] = `leadmagic-js/${VERSION}`;
-    // One key for every attempt, so a retried POST is never billed twice.
-    if (method === "POST" && !config.sandbox) {
-      headers["x-idempotency-key"] = options.idempotencyKey ?? randomId();
-    }
-  }
-  if (config.sandbox && options.sandboxOutcome) {
-    headers["x-sandbox-outcome"] = options.sandboxOutcome;
+  headers["x-api-key"] = config.apiKey;
+  headers["user-agent"] = `leadmagic-js/${VERSION}`;
+  // One key for every attempt, so a retried POST is never billed twice.
+  if (method === "POST") {
+    headers["x-idempotency-key"] = options.idempotencyKey ?? randomId();
   }
   return headers;
 }
 
 /** Removes the key from text that came from outside the SDK, such as a fetch error. */
-function redact(value: string, apiKey: string | undefined): string {
-  return apiKey ? value.split(apiKey).join("[api key]") : value;
+function redact(value: string, apiKey: string): string {
+  return value.split(apiKey).join("[api key]");
 }
 
 function fetchError(
@@ -226,7 +197,7 @@ function fetchError(
   timedOut: boolean,
   cancelled: boolean,
   timeoutMs: number,
-  apiKey: string | undefined
+  apiKey: string
 ): LeadMagicError {
   if (timedOut) {
     return clientError(
@@ -285,7 +256,7 @@ export async function send<T>(
 
   const failed = (
     error: LeadMagicError,
-    meta: ResponseMeta = emptyMeta(config.sandbox)
+    meta: ResponseMeta = emptyMeta()
   ): Result<T> => ({ data: null, error, meta });
   const canRetry = (attempt: number, wait: number) =>
     attempt < maxRetries && Date.now() - started + wait < timeoutMs;
@@ -302,7 +273,7 @@ export async function send<T>(
           signal: deadline.signal,
           // The API never redirects. Following one would forward the key to
           // wherever it points, so a redirect comes back as an error instead.
-          redirect: config.apiKey ? "manual" : "follow",
+          redirect: "manual",
         });
       } catch (cause) {
         const wait = backoff(attempt, undefined);
@@ -318,7 +289,7 @@ export async function send<T>(
       }
 
       const parsed = await readBody(response);
-      const meta = metaFrom(response, config.sandbox, parsed);
+      const meta = metaFrom(response, parsed);
       if (response.ok) {
         return successResult<T>(response.status, parsed, meta);
       }

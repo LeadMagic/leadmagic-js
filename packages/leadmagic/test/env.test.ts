@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { resetEnvWarnings, SANDBOX_BASE_URL } from "../src/env";
+import { API_KEYS_URL, resetEnvWarnings } from "../src/env";
 import { createClient, LeadMagicError, validateEmail } from "../src/index";
 import { mockFetch, VALID_EMAIL_BODY } from "./helpers";
 
@@ -20,7 +20,6 @@ function thrown(fn: () => unknown): LeadMagicError {
 beforeEach(() => {
   vi.unstubAllEnvs();
   vi.stubEnv("LEADMAGIC_API_KEY", "");
-  vi.stubEnv("LEADMAGIC_SANDBOX", "");
   vi.stubEnv("LEADMAGIC_BASE_URL", "");
   vi.stubEnv("NEXT_PUBLIC_LEADMAGIC_API_KEY", "");
   resetEnvWarnings();
@@ -59,12 +58,12 @@ describe("key detection", () => {
     expect(mock.calls[0]?.headers["x-api-key"]).toBe("lm_live_explicit");
   });
 
-  it("throws missing_api_key with a pointer to the Sandbox", () => {
+  it("throws missing_api_key with a link to create a key", () => {
     const error = thrown(() => createClient());
     expect(error.code).toBe("missing_api_key");
     expect(error.kind).toBe("config");
     expect(error.message).toContain("LEADMAGIC_API_KEY");
-    expect(error.message).toContain("LEADMAGIC_SANDBOX=1");
+    expect(error.message).toContain(API_KEYS_URL);
   });
 
   it("never prints the key in errors", () => {
@@ -141,47 +140,7 @@ describe("key safety", () => {
       "http://localhost:8787",
       "http://127.0.0.1:8787",
     ]) {
-      expect(createClient({ apiKey: KEY, baseUrl }).sandbox).toBe(false);
+      expect(() => createClient({ apiKey: KEY, baseUrl })).not.toThrow();
     }
-  });
-});
-
-describe("sandbox", () => {
-  it("warns once when it is left on in production", () => {
-    vi.stubEnv("NODE_ENV", "production");
-    vi.stubEnv("LEADMAGIC_SANDBOX", "1");
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    createClient();
-    createClient();
-    expect(warn).toHaveBeenCalledTimes(1);
-    expect(String(warn.mock.calls[0]?.[0])).toContain("synthetic");
-  });
-
-  it("needs no key and targets the public Sandbox", async () => {
-    vi.stubEnv("LEADMAGIC_SANDBOX", "1");
-    const mock = mockFetch({
-      body: VALID_EMAIL_BODY,
-      headers: { "x-sandbox": "true" },
-    });
-    const client = createClient({ fetch: mock.fetch });
-
-    const { meta } = await client.validateEmail("ada@stripe.com", {
-      sandboxOutcome: "402",
-    });
-
-    expect(client.sandbox).toBe(true);
-    expect(meta.sandbox).toBe(true);
-    expect(mock.calls[0]?.url).toBe(
-      `${SANDBOX_BASE_URL}/v1/people/email-validation`
-    );
-    expect(mock.calls[0]?.headers["x-api-key"]).toBeUndefined();
-    expect(mock.calls[0]?.headers["x-sandbox-outcome"]).toBe("402");
-    expect(mock.calls[0]?.headers["x-idempotency-key"]).toBeUndefined();
-  });
-
-  it("works in the browser because there is no key to leak", () => {
-    vi.stubGlobal("window", {});
-    vi.stubGlobal("document", {});
-    expect(createClient({ sandbox: true }).sandbox).toBe(true);
   });
 });

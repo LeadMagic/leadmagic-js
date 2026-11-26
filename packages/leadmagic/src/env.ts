@@ -1,7 +1,6 @@
 import { clientError } from "./errors";
 
 export const DEFAULT_BASE_URL = "https://api.leadmagic.io";
-export const SANDBOX_BASE_URL = "https://leadmagic.io/playground/api/sandbox";
 export const API_KEYS_URL = "https://app.leadmagic.io/settings/api";
 
 /** Env var names that a framework would inline into browser bundles. */
@@ -63,48 +62,27 @@ function isProduction(): boolean {
   return readEnv("NODE_ENV") === "production";
 }
 
-function truthy(value: string | undefined): boolean {
-  return value === "1" || value?.toLowerCase() === "true";
-}
-
 export interface ResolveOptions {
   apiKey?: string;
   baseUrl?: string;
-  sandbox?: boolean;
 }
 
 export interface ResolvedConfig {
-  apiKey: string | undefined;
+  apiKey: string;
   baseUrl: string;
-  sandbox: boolean;
 }
 
 let warnedPublicKey = false;
-let warnedSandbox = false;
 
 /**
- * Works out the key, base URL and mode. Throws a `config` LeadMagicError when
+ * Works out the key and base URL. Throws a `config` LeadMagicError when
  * the setup would leak the key or cannot authenticate. These are programming
  * errors, so they throw instead of coming back in `{ error }`.
  */
 export function resolveConfig(options: ResolveOptions = {}): ResolvedConfig {
-  const sandbox = options.sandbox ?? truthy(readEnv("LEADMAGIC_SANDBOX"));
   const baseUrl = stripTrailingSlashes(
-    options.baseUrl ??
-      readEnv("LEADMAGIC_BASE_URL") ??
-      (sandbox ? SANDBOX_BASE_URL : DEFAULT_BASE_URL)
+    options.baseUrl ?? readEnv("LEADMAGIC_BASE_URL") ?? DEFAULT_BASE_URL
   );
-
-  if (sandbox) {
-    // The Sandbox needs no key and returns synthetic data, so it is safe anywhere.
-    if (isProduction() && !isBrowser() && !warnedSandbox) {
-      warnedSandbox = true;
-      console.warn(
-        "[leadmagic] Sandbox mode is on in production: every answer is synthetic, so no email is really checked. Unset LEADMAGIC_SANDBOX and set LEADMAGIC_API_KEY to go live."
-      );
-    }
-    return { apiKey: undefined, baseUrl, sandbox };
-  }
 
   if (isBrowser()) {
     throw clientError(
@@ -129,7 +107,7 @@ export function resolveConfig(options: ResolveOptions = {}): ResolvedConfig {
   if (!apiKey) {
     throw clientError(
       "missing_api_key",
-      `No LeadMagic API key. Set LEADMAGIC_API_KEY on the server (create one at ${API_KEYS_URL}), pass { apiKey }, or set LEADMAGIC_SANDBOX=1 to use synthetic data without a key.`
+      `No LeadMagic API key. Set LEADMAGIC_API_KEY on the server (create one at ${API_KEYS_URL}), or pass { apiKey }.`
     );
   }
   // Checked here so the key never reaches a header error, which would print it.
@@ -146,11 +124,10 @@ export function resolveConfig(options: ResolveOptions = {}): ResolvedConfig {
     );
   }
 
-  return { apiKey, baseUrl, sandbox };
+  return { apiKey, baseUrl };
 }
 
 /** For tests. */
 export function resetEnvWarnings(): void {
   warnedPublicKey = false;
-  warnedSandbox = false;
 }

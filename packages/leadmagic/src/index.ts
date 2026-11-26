@@ -19,7 +19,6 @@ export type {
   RequestOptions,
   ResponseMeta,
   Result,
-  SandboxOutcome,
 } from "./http";
 export type {
   Company,

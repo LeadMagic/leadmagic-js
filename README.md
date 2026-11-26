@@ -35,16 +35,15 @@ It runs on Node.js 20+, Bun, Deno, Cloudflare Workers and Vercel Functions. Type
 - [Validate emails in Next.js forms](https://leadmagic.io/docs/sdk/nextjs-forms)
 - [Reference](https://leadmagic.io/docs/sdk/reference)
 - [Errors](https://leadmagic.io/docs/sdk/errors)
-- [Sandbox and testing](https://leadmagic.io/docs/sdk/sandbox)
 - [Keeping your key safe](https://leadmagic.io/docs/sdk/security)
 
 ## In this repository
 
-| Path                                           |                                                            |
-| ---------------------------------------------- | ---------------------------------------------------------- |
-| [`packages/leadmagic`](packages/leadmagic)     | The SDK                                                    |
-| [`examples/next-signup`](examples/next-signup) | A Next.js signup form that runs on the Sandbox with no key |
-| [`registry`](registry)                         | The email field you install with `npx shadcn add`          |
+| Path                                           |                                                   |
+| ---------------------------------------------- | ------------------------------------------------- |
+| [`packages/leadmagic`](packages/leadmagic)     | The SDK                                           |
+| [`examples/next-signup`](examples/next-signup) | A Next.js signup form built with shadcn/ui        |
+| [`registry`](registry)                         | The email field you install with `npx shadcn add` |
 
 ## Contributing and security
 

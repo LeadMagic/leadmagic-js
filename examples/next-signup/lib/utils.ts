@@ -1,6 +1,7 @@
-/** Joins class names; the example has no tailwind-merge to keep dependencies small. */
-export function cn(
-  ...classes: Array<string | false | null | undefined>
-): string {
-  return classes.filter(Boolean).join(" ");
+import type { ClassValue } from "clsx";
+import { clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
 }
