@@ -1,0 +1,25 @@
+{
+  "name": "next-signup-example",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev --port 3333",
+    "start": "next start --port 3333",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "leadmagic": "workspace:*",
+    "next": "16.4.6",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.5",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.3.3",
+    "@types/react-dom": "^19.2.0",
+    "tailwindcss": "^4.3.5",
+    "typescript": "^5.9.3"
+  }
+}

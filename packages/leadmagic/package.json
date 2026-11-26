@@ -1,0 +1,103 @@
+{
+  "name": "leadmagic",
+  "version": "0.1.1",
+  "description": "LeadMagic for JavaScript: email validation and company lookup from your server, with a Next.js route handler and a React hook for forms.",
+  "keywords": [
+    "leadmagic",
+    "email validation",
+    "email verification",
+    "company enrichment",
+    "nextjs",
+    "react",
+    "forms"
+  ],
+  "homepage": "https://leadmagic.io/docs/sdk",
+  "bugs": "https://github.com/LeadMagic/leadmagic-js/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LeadMagic/leadmagic-js.git",
+    "directory": "packages/leadmagic"
+  },
+  "license": "MIT",
+  "sideEffects": false,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./next": {
+      "types": "./dist/next/index.d.ts",
+      "default": "./dist/next/index.js"
+    },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "default": "./dist/react/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "check:package": "publint && attw --pack . --profile esm-only && size-limit",
+    "test": "vitest run",
+    "test:contract": "LEADMAGIC_CONTRACT=1 vitest run test/contract.test.ts",
+    "test:live": "LEADMAGIC_LIVE=1 vitest run test/live.test.ts",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@size-limit/preset-small-lib": "^14.3.0",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.3.3",
+    "happy-dom": "^21.0.4",
+    "publint": "^0.3.25",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "size-limit": "^14.3.0",
+    "tsdown": "^0.23.7",
+    "typescript": "^5.9.3",
+    "vitest": "^5.1.2"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "size-limit": [
+    {
+      "name": "core",
+      "path": "dist/index.js",
+      "limit": "6 kB"
+    },
+    {
+      "name": "next",
+      "path": "dist/next/index.js",
+      "limit": "8 kB"
+    },
+    {
+      "name": "react",
+      "path": "dist/react/index.js",
+      "limit": "3 kB",
+      "ignore": [
+        "react"
+      ]
+    }
+  ]
+}

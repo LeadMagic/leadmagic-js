@@ -1,0 +1,21 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "email-field",
+  "type": "registry:component",
+  "title": "Email field",
+  "description": "An email input that checks deliverability with LeadMagic on blur. Needs the leadmagic/next route handler.",
+  "dependencies": [
+    "leadmagic"
+  ],
+  "registryDependencies": [
+    "input",
+    "label"
+  ],
+  "files": [
+    {
+      "path": "components/email-field.tsx",
+      "type": "registry:component",
+      "content": "\"use client\";\n\nimport type { UseEmailValidationOptions } from \"leadmagic/react\";\nimport { useEmailValidation } from \"leadmagic/react\";\nimport type { ChangeEvent, ComponentProps, FocusEvent } from \"react\";\nimport { useId } from \"react\";\nimport { Input } from \"@/components/ui/input\";\nimport { Label } from \"@/components/ui/label\";\n\nexport interface EmailFieldProps\n  extends Omit<\n    ComponentProps<typeof Input>,\n    \"type\" | \"aria-invalid\" | \"aria-busy\"\n  > {\n  label?: string;\n  /** Options for the LeadMagic hook, e.g. a custom `endpoint`. */\n  validation?: UseEmailValidationOptions;\n}\n\n/**\n * An email input that checks the address with LeadMagic when it loses focus.\n * Requires the route from `createValidateEmailHandler` in `leadmagic/next`.\n * This file is yours: change the copy and layout freely.\n */\nexport function EmailField({\n  label = \"Email\",\n  validation,\n  id,\n  onBlur,\n  onChange,\n  name = \"email\",\n  ...props\n}: EmailFieldProps) {\n  const generatedId = useId();\n  const inputId = id ?? generatedId;\n  const hintId = `${inputId}-hint`;\n  const email = useEmailValidation(validation);\n\n  let hint: string | null = null;\n  if (email.status === \"undeliverable\") {\n    hint = \"This address can't receive email. Check it for typos.\";\n  } else if (email.status === \"deliverable\" && email.roleBased) {\n    hint =\n      \"This looks like a shared inbox. A personal address reaches you faster.\";\n  }\n\n  return (\n    <div className=\"grid gap-2\">\n      <Label htmlFor={inputId}>{label}</Label>\n      <Input\n        {...props}\n        aria-busy={email.inputProps[\"aria-busy\"]}\n        aria-describedby={hint ? hintId : undefined}\n        aria-invalid={email.inputProps[\"aria-invalid\"]}\n        autoComplete={props.autoComplete ?? \"email\"}\n        id={inputId}\n        name={name}\n        onBlur={(event: FocusEvent<HTMLInputElement>) => {\n          email.inputProps.onBlur(event);\n          onBlur?.(event);\n        }}\n        onChange={(event: ChangeEvent<HTMLInputElement>) => {\n          email.inputProps.onChange(event);\n          onChange?.(event);\n        }}\n        type=\"email\"\n      />\n      {hint ? (\n        <p\n          className={\n            email.status === \"undeliverable\"\n              ? \"text-destructive text-sm\"\n              : \"text-muted-foreground text-sm\"\n          }\n          id={hintId}\n        >\n          {hint}\n        </p>\n      ) : null}\n    </div>\n  );\n}\n"
+    }
+  ]
+}
