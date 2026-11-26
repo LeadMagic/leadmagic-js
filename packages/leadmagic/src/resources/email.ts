@@ -70,6 +70,9 @@ export interface ValidateEmailOptions extends RequestOptions {
   verificationPolicy?: "legacy" | "strict";
 }
 
+/** What `validateEmail` resolves to. Check `error` and `data` narrows to {@link EmailValidation}. */
+export type ValidateEmailResult = Result<EmailValidation>;
+
 const MAX_EMAIL_LENGTH = 320;
 const STATUSES: ReadonlySet<string> = new Set(["valid", "invalid", "unknown"]);
 
@@ -102,7 +105,7 @@ export async function validateEmailWith(
   config: TransportConfig,
   email: string,
   options: ValidateEmailOptions = {}
-): Promise<Result<EmailValidation>> {
+): Promise<ValidateEmailResult> {
   const value = typeof email === "string" ? email.trim() : "";
   if (!value.includes("@") || value.length > MAX_EMAIL_LENGTH) {
     return {

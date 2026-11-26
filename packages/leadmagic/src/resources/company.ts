@@ -46,6 +46,9 @@ export interface FindCompanyInput {
   name?: string;
 }
 
+/** What `findCompany` resolves to. Check `error` and `data` narrows to {@link CompanyLookup}. */
+export type FindCompanyResult = Result<CompanyLookup>;
+
 type Obj = Record<string, unknown>;
 
 function isObj(value: unknown): value is Obj {
@@ -76,7 +79,7 @@ export async function findCompanyWith(
   config: TransportConfig,
   input: FindCompanyInput,
   options: RequestOptions = {}
-): Promise<Result<CompanyLookup>> {
+): Promise<FindCompanyResult> {
   const body: Obj = {};
   if (input.domain?.trim()) {
     body.company_domain = input.domain.trim();

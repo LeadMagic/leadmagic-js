@@ -10,6 +10,9 @@ export interface Credits {
   raw: Record<string, unknown>;
 }
 
+/** What `getCredits` resolves to. Check `error` and `data` narrows to {@link Credits}. */
+export type GetCreditsResult = Result<Credits>;
+
 function n(value: unknown): number | undefined {
   const v = Number(value);
   return value !== null && value !== undefined && Number.isFinite(v)
@@ -33,7 +36,7 @@ export function toCredits(body: Record<string, unknown>): Credits {
 export async function getCreditsWith(
   config: TransportConfig,
   options: RequestOptions = {}
-): Promise<Result<Credits>> {
+): Promise<GetCreditsResult> {
   const result = await send<Record<string, unknown>>(
     config,
     "GET",

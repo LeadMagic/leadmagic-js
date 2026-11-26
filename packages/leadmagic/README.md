@@ -1,6 +1,6 @@
 # leadmagic
 
-The official JavaScript SDK for [LeadMagic](https://leadmagic.io). Validate emails and look up companies from Node.js, Next.js, Bun, Deno or Cloudflare Workers.
+The official JavaScript and TypeScript SDK for [LeadMagic](https://leadmagic.io). Validate emails and look up companies from Node.js, Next.js, Bun, Deno or Cloudflare Workers. Types are included; there is no `@types` package to install.
 
 ```bash
 npm install leadmagic
@@ -47,6 +47,21 @@ The route answers same-origin requests only, returns `{ verdict, roleBased }`, c
 | `leadmagic/react` | `useEmailValidation`                                         |
 
 Every call returns `{ data, error, meta }` and never throws for API or network failures. Branch on `error.kind`: `config`, `auth`, `billing`, `rate_limit`, `invalid_input` or `unavailable`.
+
+## TypeScript
+
+Checking `error` narrows `data`, so no casts are needed:
+
+```ts
+import { validateEmail, type ValidateEmailResult } from "leadmagic";
+
+const result: ValidateEmailResult = await validateEmail("alex@example.com");
+if (!result.error) {
+  result.data.verdict; // "deliverable" | "undeliverable" | "unknown"
+}
+```
+
+Every response, option and error code is exported as a type from the entry it belongs to. `error.code` autocompletes the documented codes and still accepts codes the API adds later. Full list: [Types](https://leadmagic.io/docs/sdk/reference#types).
 
 ## Docs
 

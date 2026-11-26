@@ -8,6 +8,8 @@ export {
 } from "./client";
 export {
   isLeadMagicError,
+  type LeadMagicApiErrorCode,
+  type LeadMagicClientErrorCode,
   LeadMagicError,
   type LeadMagicErrorCode,
   type LeadMagicErrorKind,
@@ -23,12 +25,15 @@ export type {
   Company,
   CompanyLookup,
   FindCompanyInput,
+  FindCompanyResult,
 } from "./resources/company";
-export type { Credits } from "./resources/credits";
+export type { Credits, GetCreditsResult } from "./resources/credits";
 export type {
+  EmailCompanyLocation,
   EmailStatus,
   EmailValidation,
   EmailVerdict,
   ValidateEmailOptions,
+  ValidateEmailResult,
 } from "./resources/email";
 export { VERSION } from "./version";

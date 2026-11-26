@@ -1,10 +1,13 @@
 import { resolveConfig } from "./env";
-import type { RequestOptions, Result, TransportConfig } from "./http";
-import type { CompanyLookup, FindCompanyInput } from "./resources/company";
+import type { RequestOptions, TransportConfig } from "./http";
+import type { FindCompanyInput, FindCompanyResult } from "./resources/company";
 import { findCompanyWith } from "./resources/company";
-import type { Credits } from "./resources/credits";
+import type { GetCreditsResult } from "./resources/credits";
 import { getCreditsWith } from "./resources/credits";
-import type { EmailValidation, ValidateEmailOptions } from "./resources/email";
+import type {
+  ValidateEmailOptions,
+  ValidateEmailResult,
+} from "./resources/email";
 import { validateEmailWith } from "./resources/email";
 
 export interface LeadMagicOptions {
@@ -32,16 +35,16 @@ export interface LeadMagicClient {
   findCompany: (
     input: FindCompanyInput,
     options?: RequestOptions
-  ) => Promise<Result<CompanyLookup>>;
+  ) => Promise<FindCompanyResult>;
   /** Credit balance. Free. */
-  getCredits: (options?: RequestOptions) => Promise<Result<Credits>>;
+  getCredits: (options?: RequestOptions) => Promise<GetCreditsResult>;
   /** True when this client talks to the Sandbox. */
   readonly sandbox: boolean;
   /** Validate one email address. 0.25 credits for `valid` or `invalid`; `unknown` is free. */
   validateEmail: (
     email: string,
     options?: ValidateEmailOptions
-  ) => Promise<Result<EmailValidation>>;
+  ) => Promise<ValidateEmailResult>;
 }
 
 const DEFAULT_TIMEOUT_MS = 10_000;
@@ -83,7 +86,7 @@ export function createClient(options: LeadMagicOptions = {}): LeadMagicClient {
 export function validateEmail(
   email: string,
   options?: ValidateEmailOptions
-): Promise<Result<EmailValidation>> {
+): Promise<ValidateEmailResult> {
   return validateEmailWith(transport({}), email, options);
 }
 
@@ -91,11 +94,13 @@ export function validateEmail(
 export function findCompany(
   input: FindCompanyInput,
   options?: RequestOptions
-): Promise<Result<CompanyLookup>> {
+): Promise<FindCompanyResult> {
   return findCompanyWith(transport({}), input, options);
 }
 
 /** Credit balance for the key in `LEADMAGIC_API_KEY`. */
-export function getCredits(options?: RequestOptions): Promise<Result<Credits>> {
+export function getCredits(
+  options?: RequestOptions
+): Promise<GetCreditsResult> {
   return getCreditsWith(transport({}), options);
 }
