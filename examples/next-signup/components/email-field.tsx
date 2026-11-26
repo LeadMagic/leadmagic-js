@@ -12,6 +12,11 @@ export interface EmailFieldProps
     ComponentProps<typeof Input>,
     "type" | "aria-invalid" | "aria-busy"
   > {
+  /**
+   * A message from your server, such as your server action's answer. It
+   * replaces the field's own hint, so only one message shows at a time.
+   */
+  error?: string;
   label?: string;
   /** Options for the LeadMagic hook, e.g. a custom `endpoint`. */
   validation?: UseEmailValidationOptions;
@@ -23,6 +28,7 @@ export interface EmailFieldProps
  * This file is yours: change the copy and layout freely.
  */
 export function EmailField({
+  error,
   label = "Email",
   validation,
   id,
@@ -37,8 +43,13 @@ export function EmailField({
   const email = useEmailValidation(validation);
 
   let hint: string | null = null;
-  if (email.status === "undeliverable") {
+  let invalid = false;
+  if (error) {
+    hint = error;
+    invalid = true;
+  } else if (email.status === "undeliverable") {
     hint = "This address can't receive email. Check it for typos.";
+    invalid = true;
   } else if (email.status === "deliverable" && email.roleBased) {
     hint =
       "This looks like a shared inbox. A personal address reaches you faster.";
@@ -51,7 +62,7 @@ export function EmailField({
         {...props}
         aria-busy={email.inputProps["aria-busy"]}
         aria-describedby={hint ? hintId : undefined}
-        aria-invalid={email.inputProps["aria-invalid"]}
+        aria-invalid={error ? true : email.inputProps["aria-invalid"]}
         autoComplete={props.autoComplete ?? "email"}
         id={inputId}
         name={name}
@@ -68,11 +79,12 @@ export function EmailField({
       {hint ? (
         <p
           className={
-            email.status === "undeliverable"
+            invalid
               ? "text-destructive text-sm"
               : "text-muted-foreground text-sm"
           }
           id={hintId}
+          role={error ? "alert" : undefined}
         >
           {hint}
         </p>
