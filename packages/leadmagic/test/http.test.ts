@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import type { Server } from "node:http";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
+import { afterEach, describe, expect, it } from "vitest";
 import { createClient } from "../src/index";
 import { hangingReply, mockFetch, problem, VALID_EMAIL_BODY } from "./helpers";
 
@@ -238,5 +241,67 @@ describe("timeouts and cancellation", () => {
     const { error } = await pending;
     expect(error?.code).toBe("network_error");
     expect(error?.message).toContain("cancelled");
+  });
+});
+
+describe("key safety", () => {
+  const servers: Server[] = [];
+
+  function listen(server: Server): Promise<string> {
+    servers.push(server);
+    return new Promise((resolve) => {
+      server.listen(0, "127.0.0.1", () => {
+        const { port } = server.address() as AddressInfo;
+        resolve(`http://127.0.0.1:${port}`);
+      });
+    });
+  }
+
+  afterEach(() => {
+    for (const server of servers.splice(0)) {
+      server.close();
+    }
+  });
+
+  it("does not follow a redirect, so the key goes nowhere else", async () => {
+    const seen: Array<string | undefined> = [];
+    const elsewhere = await listen(
+      createServer((req, res) => {
+        seen.push(req.headers["x-api-key"] as string | undefined);
+        res.setHeader("content-type", "application/json");
+        res.end("{}");
+      })
+    );
+    const api = await listen(
+      createServer((_req, res) => {
+        res.writeHead(307, { location: `${elsewhere}/v1/credits` });
+        res.end();
+      })
+    );
+
+    // The real fetch, so this checks the runtime and not a mock.
+    const { error, meta } = await createClient({
+      apiKey,
+      baseUrl: api,
+    }).getCredits();
+
+    expect(seen).toEqual([]);
+    expect(meta.status).toBe(307);
+    expect(error?.code).toBe("http_307");
+    expect(error?.kind).toBe("unavailable");
+  });
+
+  it("removes the key from a network error's message", async () => {
+    const mock = mockFetch(
+      new TypeError(`Headers.append: "${apiKey}" is an invalid header value.`)
+    );
+    const { error } = await createClient({
+      apiKey,
+      fetch: mock.fetch,
+      maxRetries: 0,
+    }).getCredits();
+    expect(error?.code).toBe("network_error");
+    expect(error?.message).not.toContain(apiKey);
+    expect(JSON.stringify(error)).not.toContain(apiKey);
   });
 });

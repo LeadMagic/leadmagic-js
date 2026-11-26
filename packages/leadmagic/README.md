@@ -36,7 +36,7 @@ export function EmailInput() {
 
 Or install the ready-made field: `npx shadcn@latest add https://leadmagic.io/docs/r/email-field.json`.
 
-The route answers same-origin requests only, returns `{ verdict, roleBased }`, caches answers, and answers `unknown` when LeadMagic can't, so signups never block.
+The route answers same-origin requests only, returns `{ verdict, roleBased }`, caches answers, caps checks per visitor and in total, and answers `unknown` when LeadMagic can't, so signups never block. Anyone who loads your page can call it, so add bot detection or a shared rate limiter with `protect`.
 
 ## Imports
 
@@ -62,6 +62,10 @@ if (!result.error) {
 ```
 
 Every response, option and error code is exported as a type from the entry it belongs to. `error.code` autocompletes the documented codes and still accepts codes the API adds later. Full list: [Types](https://leadmagic.io/docs/sdk/reference#types).
+
+## Security
+
+The key is sent over `https` only, never follows a redirect and never appears in an error message. The package has no runtime dependencies and no install scripts, and each version is published with [provenance](https://docs.npmjs.com/generating-provenance-statements). See [Security](https://leadmagic.io/docs/sdk/security) and the [security policy](https://github.com/LeadMagic/leadmagic-js/blob/main/SECURITY.md).
 
 ## Docs
 

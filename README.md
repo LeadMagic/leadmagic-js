@@ -22,3 +22,7 @@ After changing `registry/email-field.tsx`, run `pnpm registry:build`.
 ## Release
 
 Add a changeset with `pnpm changeset`. On `main`, the release workflow opens a version PR; merging it publishes to npm with provenance.
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for how to report a problem and what the package does to protect API keys and credits.

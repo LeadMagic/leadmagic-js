@@ -216,11 +216,17 @@ function buildHeaders(
   return headers;
 }
 
+/** Removes the key from text that came from outside the SDK, such as a fetch error. */
+function redact(value: string, apiKey: string | undefined): string {
+  return apiKey ? value.split(apiKey).join("[api key]") : value;
+}
+
 function fetchError(
   cause: unknown,
   timedOut: boolean,
   cancelled: boolean,
-  timeoutMs: number
+  timeoutMs: number,
+  apiKey: string | undefined
 ): LeadMagicError {
   if (timedOut) {
     return clientError(
@@ -232,7 +238,10 @@ function fetchError(
     return clientError("network_error", "The request was cancelled.");
   }
   const reason = cause instanceof Error ? cause.message : String(cause);
-  return clientError("network_error", `Could not reach LeadMagic: ${reason}`);
+  return clientError(
+    "network_error",
+    `Could not reach LeadMagic: ${redact(reason, apiKey)}`
+  );
 }
 
 function successResult<T>(
@@ -291,13 +300,18 @@ export async function send<T>(
           headers,
           body: payload,
           signal: deadline.signal,
+          // The API never redirects. Following one would forward the key to
+          // wherever it points, so a redirect comes back as an error instead.
+          redirect: config.apiKey ? "manual" : "follow",
         });
       } catch (cause) {
         const wait = backoff(attempt, undefined);
         const timedOut = deadline.timedOut();
         const cancelled = options.signal?.aborted === true;
         if (timedOut || cancelled || !canRetry(attempt, wait)) {
-          return failed(fetchError(cause, timedOut, cancelled, timeoutMs));
+          return failed(
+            fetchError(cause, timedOut, cancelled, timeoutMs, config.apiKey)
+          );
         }
         await sleep(wait, deadline.signal);
         continue;

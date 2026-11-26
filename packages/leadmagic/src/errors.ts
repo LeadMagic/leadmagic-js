@@ -28,6 +28,8 @@ export type LeadMagicErrorKind =
 export type LeadMagicClientErrorCode =
   | "missing_api_key"
   | "public_api_key"
+  | "malformed_api_key"
+  | "insecure_base_url"
   | "browser_runtime"
   | "invalid_input"
   | "timeout"
@@ -147,6 +149,8 @@ const BUDGET_CODES = new Set([
 const CLIENT_KINDS: Record<LeadMagicClientErrorCode, LeadMagicErrorKind> = {
   missing_api_key: "config",
   public_api_key: "config",
+  malformed_api_key: "config",
+  insecure_base_url: "config",
   browser_runtime: "config",
   invalid_input: "invalid_input",
   timeout: "unavailable",

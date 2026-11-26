@@ -1,9 +1,9 @@
 import type { LeadMagicClient, LeadMagicOptions } from "../client";
 import { createClient } from "../client";
 import { readEnv } from "../env";
-import type { LeadMagicError } from "../errors";
-import { isLeadMagicError } from "../errors";
+import { isLeadMagicError, LeadMagicError } from "../errors";
 import type { EmailVerdict } from "../resources/email";
+import { clientIp, WindowCounter } from "./rate-limit";
 
 /** What the browser receives. Nothing else from the API leaves your server. */
 export interface ValidateEmailResponse {
@@ -42,6 +42,14 @@ export interface ValidateEmailHandlerOptions {
     request: Request,
     input: { email: string }
   ) => ProtectResult | Promise<ProtectResult>;
+  /**
+   * Caps on the checks that reach LeadMagic, counted in memory on each server
+   * instance: `perIp` per visitor (default 10) and `total` for everyone
+   * (default 120) in each `windowMs` (default one minute). Over a cap the
+   * route answers `unknown` and spends nothing. Instances do not share
+   * counts, so add `protect` for a hard limit. `false` turns the caps off.
+   */
+  rateLimit?: false | { perIp?: number; total?: number; windowMs?: number };
   /** Longest the form waits for LeadMagic before answering `unknown`. Default 8000 ms. */
   timeoutMs?: number;
 }
@@ -50,8 +58,14 @@ const MAX_BODY_BYTES = 2048;
 const DEFAULT_TIMEOUT_MS = 8000;
 const DEFAULT_CACHE_TTL_MS = 10 * 60 * 1000;
 const DEFAULT_CACHE_MAX = 1000;
+const DEFAULT_PER_IP = 10;
+const DEFAULT_TOTAL = 120;
+const DEFAULT_WINDOW_MS = 60 * 1000;
 
-const NO_STORE = { "cache-control": "no-store" };
+const BASE_HEADERS = {
+  "cache-control": "no-store",
+  "x-content-type-options": "nosniff",
+};
 const TRAILING_SLASHES = /\/+$/u;
 
 function json(
@@ -59,7 +73,10 @@ function json(
   status: number,
   extra: Record<string, string> = {}
 ): Response {
-  return Response.json(body, { status, headers: { ...NO_STORE, ...extra } });
+  return Response.json(body, {
+    status,
+    headers: { ...BASE_HEADERS, ...extra },
+  });
 }
 
 function isDev(): boolean {
@@ -136,13 +153,43 @@ class TtlCache {
   }
 }
 
+/** Reads the body as text, or nothing once it passes the size cap. */
+async function readCapped(request: Request): Promise<string | undefined> {
+  if (!request.body) {
+    return "";
+  }
+  const reader = request.body.getReader();
+  const decoder = new TextDecoder();
+  let size = 0;
+  let text = "";
+  let chunk = await reader.read();
+  while (!chunk.done && size + chunk.value.byteLength <= MAX_BODY_BYTES) {
+    size += chunk.value.byteLength;
+    text += decoder.decode(chunk.value, { stream: true });
+    // biome-ignore lint/performance/noAwaitInLoops: a stream is read in order.
+    chunk = await reader.read();
+  }
+  if (!chunk.done) {
+    // Stop reading: a body with no Content-Length could be any size.
+    await reader.cancel();
+    return;
+  }
+  return text + decoder.decode();
+}
+
 async function readEmail(request: Request): Promise<string | Response> {
+  // Browsers only send JSON across sites after a preflight, which this route
+  // never approves, so this also stops form posts from other sites.
+  const type = request.headers.get("content-type")?.toLowerCase() ?? "";
+  if (!type.startsWith("application/json")) {
+    return json({ error: 'Send JSON: { "email": "…" }.' }, 415);
+  }
   const length = Number(request.headers.get("content-length") ?? "0");
   if (length > MAX_BODY_BYTES) {
     return json({ error: "Request body too large." }, 413);
   }
-  const raw = await request.text();
-  if (raw.length > MAX_BODY_BYTES) {
+  const raw = await readCapped(request);
+  if (raw === undefined) {
     return json({ error: "Request body too large." }, 413);
   }
   let body: unknown;
@@ -180,7 +227,7 @@ function notify(
  *
  * The route is reachable by anyone who loads your page, so it only answers
  * same-origin requests, returns `{ verdict, roleBased }` and nothing else,
- * caches per email, and fails open: when LeadMagic is slow, rate limited or
+ * caches per email, caps how many checks it makes, and fails open: when LeadMagic is slow, rate limited or
  * out of credits, it answers `unknown` and your signup goes through.
  */
 export function createValidateEmailHandler(
@@ -194,6 +241,16 @@ export function createValidateEmailHandler(
           options.cache?.ttlMs ?? DEFAULT_CACHE_TTL_MS
         );
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const limits =
+    options.rateLimit === false
+      ? undefined
+      : {
+          perIp: options.rateLimit?.perIp ?? DEFAULT_PER_IP,
+          total: options.rateLimit?.total ?? DEFAULT_TOTAL,
+          counter: new WindowCounter(
+            options.rateLimit?.windowMs ?? DEFAULT_WINDOW_MS
+          ),
+        };
   let client: LeadMagicClient | undefined;
   let loggedConfigError = false;
 
@@ -243,6 +300,31 @@ export function createValidateEmailHandler(
     return json(UNKNOWN, 200);
   }
 
+  // Which cap a request is over, if any. The visitor's own cap is checked
+  // first so one noisy visitor cannot use up everyone's share.
+  function overLimit(request: Request): string | undefined {
+    if (!limits) {
+      return;
+    }
+    const ip = clientIp(request);
+    if (ip && !limits.counter.take(`ip:${ip}`, limits.perIp)) {
+      return "route_limit_per_ip";
+    }
+    return limits.counter.take("total", limits.total)
+      ? undefined
+      : "route_limit_total";
+  }
+
+  // Anything on our side: never block a signup.
+  function failOpen(email: string, error: LeadMagicError): Response {
+    notify(options, { email, verdict: "unknown", error, cached: false });
+    return json(
+      UNKNOWN,
+      200,
+      isDev() ? { "x-leadmagic-error": error.code } : {}
+    );
+  }
+
   function answer(
     email: string,
     key: string,
@@ -276,6 +358,21 @@ export function createValidateEmailHandler(
       return json(cached, 200);
     }
 
+    const reason = overLimit(request);
+    if (reason) {
+      return failOpen(
+        email,
+        new LeadMagicError({
+          code: "rate_limit_exceeded",
+          kind: "rate_limit",
+          status: 0,
+          reason,
+          message:
+            "This route's rateLimit was reached, so it answered unknown without calling LeadMagic.",
+        })
+      );
+    }
+
     let lm: LeadMagicClient;
     try {
       lm = getClient();
@@ -297,17 +394,6 @@ export function createValidateEmailHandler(
     if (result.error.kind === "invalid_input") {
       return answer(email, key, { verdict: "undeliverable", roleBased: false });
     }
-    // Anything on our side: never block a signup.
-    notify(options, {
-      email,
-      verdict: "unknown",
-      error: result.error,
-      cached: false,
-    });
-    return json(
-      UNKNOWN,
-      200,
-      isDev() ? { "x-leadmagic-error": result.error.code } : {}
-    );
+    return failOpen(email, result.error);
   };
 }

@@ -101,7 +101,49 @@ describe("exposed key guards", () => {
   });
 });
 
+describe("key safety", () => {
+  it("refuses a key that cannot be sent, without printing it", () => {
+    for (const bad of [`${KEY}\nextra`, `${KEY} extra`, `\u201c${KEY}\u201d`]) {
+      const error = thrown(() => createClient({ apiKey: bad }));
+      expect(error.code).toBe("malformed_api_key");
+      expect(error.kind).toBe("config");
+      expect(error.message).not.toContain(KEY);
+    }
+  });
+
+  it("refuses to send the key over plain http", () => {
+    for (const baseUrl of ["http://api.example.com", "ftp://x.test", "nope"]) {
+      const error = thrown(() => createClient({ apiKey: KEY, baseUrl }));
+      expect(error.code).toBe("insecure_base_url");
+    }
+    vi.stubEnv("LEADMAGIC_BASE_URL", "http://api.example.com");
+    expect(thrown(() => createClient({ apiKey: KEY })).code).toBe(
+      "insecure_base_url"
+    );
+  });
+
+  it("allows https anywhere and http on this machine", () => {
+    for (const baseUrl of [
+      "https://proxy.example.com/lm",
+      "http://localhost:8787",
+      "http://127.0.0.1:8787",
+    ]) {
+      expect(createClient({ apiKey: KEY, baseUrl }).sandbox).toBe(false);
+    }
+  });
+});
+
 describe("sandbox", () => {
+  it("warns once when it is left on in production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("LEADMAGIC_SANDBOX", "1");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    createClient();
+    createClient();
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0]?.[0])).toContain("synthetic");
+  });
+
   it("needs no key and targets the public Sandbox", async () => {
     vi.stubEnv("LEADMAGIC_SANDBOX", "1");
     const mock = mockFetch({

@@ -205,6 +205,150 @@ describe("configuration", () => {
   });
 });
 
+describe("request limits", () => {
+  it("only reads JSON, which other sites cannot post without a preflight", async () => {
+    const mock = mockFetch({ body: VALID_EMAIL_BODY });
+    const res = await handlerWith(mock.fetch)(
+      post(
+        { email: "ada@stripe.com" },
+        {
+          origin: ORIGIN,
+          "content-type": "text/plain",
+        }
+      )
+    );
+    expect(res.status).toBe(415);
+    expect(mock.calls).toHaveLength(0);
+  });
+
+  it("stops reading a body that has no length once it is too large", async () => {
+    const mock = mockFetch({ body: VALID_EMAIL_BODY });
+    let pulled = 0;
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled += 1;
+        controller.enqueue(new Uint8Array(1024).fill(97));
+      },
+    });
+    const res = await handlerWith(mock.fetch)(
+      new Request(`${ORIGIN}/api/leadmagic/validate-email`, {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: ORIGIN },
+        body,
+        duplex: "half",
+      } as RequestInit)
+    );
+    expect(res.status).toBe(413);
+    expect(pulled).toBeLessThan(10);
+    expect(mock.calls).toHaveLength(0);
+  });
+
+  it("marks answers as not cacheable and not sniffable", async () => {
+    const mock = mockFetch({ body: VALID_EMAIL_BODY });
+    const res = await handlerWith(mock.fetch)(post({ email: "a@stripe.com" }));
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+  });
+});
+
+describe("rate limit", () => {
+  function from(ip: string, email: string) {
+    return post({ email }, { origin: ORIGIN, "x-real-ip": ip });
+  }
+
+  it("caps one visitor without touching the others", async () => {
+    const mock = mockFetch({ body: VALID_EMAIL_BODY });
+    const events: Array<{ error: { code: string; reason?: string } | null }> =
+      [];
+    const handler = handlerWith(mock.fetch, {
+      rateLimit: { perIp: 2 },
+      onResult: (event: (typeof events)[number]) => events.push(event),
+    });
+
+    await handler(from("203.0.113.7", "a@stripe.com"));
+    await handler(from("203.0.113.7", "b@stripe.com"));
+    const third = await handler(from("203.0.113.7", "c@stripe.com"));
+    const other = await handler(from("203.0.113.8", "d@stripe.com"));
+
+    expect(third.status).toBe(200);
+    expect(await third.json()).toEqual({
+      verdict: "unknown",
+      roleBased: false,
+    });
+    expect(await other.json()).toMatchObject({ verdict: "deliverable" });
+    expect(mock.calls).toHaveLength(3);
+    expect(events[2]?.error).toMatchObject({
+      code: "rate_limit_exceeded",
+      reason: "route_limit_per_ip",
+    });
+  });
+
+  it("does not count answers served from the cache", async () => {
+    const mock = mockFetch({ body: VALID_EMAIL_BODY });
+    const handler = handlerWith(mock.fetch, { rateLimit: { perIp: 1 } });
+    for (let i = 0; i < 5; i += 1) {
+      // biome-ignore lint/performance/noAwaitInLoops: requests must be in order.
+      const res = await handler(from("203.0.113.7", "a@stripe.com"));
+      expect(await res.json()).toMatchObject({ verdict: "deliverable" });
+    }
+    expect(mock.calls).toHaveLength(1);
+  });
+
+  it("caps the total, whatever IP each request claims", async () => {
+    const mock = mockFetch({ body: VALID_EMAIL_BODY });
+    const handler = handlerWith(mock.fetch, { rateLimit: { total: 3 } });
+    const verdicts: string[] = [];
+    for (let i = 0; i < 5; i += 1) {
+      // biome-ignore lint/performance/noAwaitInLoops: requests must be in order.
+      const res = await handler(from(`198.51.100.${i}`, `u${i}@stripe.com`));
+      verdicts.push(((await res.json()) as { verdict: string }).verdict);
+    }
+    expect(verdicts).toEqual([
+      "deliverable",
+      "deliverable",
+      "deliverable",
+      "unknown",
+      "unknown",
+    ]);
+    expect(mock.calls).toHaveLength(3);
+  });
+
+  it("starts again in the next window", async () => {
+    vi.useFakeTimers();
+    try {
+      const mock = mockFetch({ body: VALID_EMAIL_BODY });
+      const handler = handlerWith(mock.fetch, {
+        rateLimit: { perIp: 1, windowMs: 1000 },
+      });
+      await handler(from("203.0.113.7", "a@stripe.com"));
+      await handler(from("203.0.113.7", "b@stripe.com"));
+      expect(mock.calls).toHaveLength(1);
+      vi.advanceTimersByTime(1001);
+      await handler(from("203.0.113.7", "c@stripe.com"));
+      expect(mock.calls).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("is on by default and can be turned off", async () => {
+    const mock = mockFetch({ body: VALID_EMAIL_BODY });
+    const byDefault = handlerWith(mock.fetch);
+    for (let i = 0; i < 12; i += 1) {
+      // biome-ignore lint/performance/noAwaitInLoops: requests must be in order.
+      await byDefault(from("203.0.113.7", `u${i}@stripe.com`));
+    }
+    expect(mock.calls).toHaveLength(10);
+
+    const off = handlerWith(mock.fetch, { rateLimit: false });
+    for (let i = 0; i < 12; i += 1) {
+      // biome-ignore lint/performance/noAwaitInLoops: requests must be in order.
+      await off(from("203.0.113.7", `v${i}@stripe.com`));
+    }
+    expect(mock.calls).toHaveLength(22);
+  });
+});
+
 describe("hooks", () => {
   it("protect can refuse or answer", async () => {
     const mock = mockFetch({ body: VALID_EMAIL_BODY });
