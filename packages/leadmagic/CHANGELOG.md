@@ -1,5 +1,11 @@
 # leadmagic
 
+## 0.1.1
+
+### Patch Changes
+
+- 76c2bff: No functional change. This is the first version released through npm staged publishing, where a maintainer approves each release before it can be installed.
+
 ## 0.1.0
 
 ### Minor Changes
