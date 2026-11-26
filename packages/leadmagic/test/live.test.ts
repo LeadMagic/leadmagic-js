@@ -1,6 +1,6 @@
 /**
  * Runs against the real API with LEADMAGIC_API_KEY (`pnpm test:live`). Catches
- * API changes that the Sandbox does not show. Costs at most 0.25 credits a run.
+ * API changes that mocked tests do not show. Costs at most 0.25 credits a run.
  */
 import { describe, expect, it } from "vitest";
 import { createClient } from "../src/index";
@@ -12,7 +12,6 @@ describe("Live API", () => {
     const { data, error, meta } = await live.getCredits();
     expect(error).toBeNull();
     expect(meta.status).toBe(200);
-    expect(meta.sandbox).toBe(false);
     expect(typeof data?.available).toBe("number");
   });
 

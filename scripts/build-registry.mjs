@@ -1,5 +1,5 @@
 // Builds public/r/<item>.json from registry.json, the format `npx shadcn add <url>` reads.
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -20,15 +20,23 @@ for (const item of registry.items) {
       content: readFileSync(join(root, file.path), "utf8"),
     })),
   };
-  writeFileSync(
-    join(outDir, `${item.name}.json`),
-    `${JSON.stringify(built, null, 2)}\n`
-  );
-  console.log(`public/r/${item.name}.json`);
+  const target = join(outDir, `${item.name}.json`);
+  const text = `${JSON.stringify(built, null, 2)}\n`;
+  if (process.argv.includes("--check")) {
+    if (!existsSync(target) || readFileSync(target, "utf8") !== text) {
+      console.error(
+        `public/r/${item.name}.json is out of date. Run pnpm registry:build.`
+      );
+      process.exit(1);
+    }
+  } else {
+    writeFileSync(target, text);
+    console.log(`public/r/${item.name}.json`);
+  }
 }
 
-// The example app uses the field the way a customer would after `shadcn add`:
-// as its own copy. Keep that copy identical to the registry source.
+// The example uses the field the way a customer would after `shadcn add`: as
+// its own copy. Keep that copy identical to the registry source.
 const exampleCopy = join(
   root,
   "examples",

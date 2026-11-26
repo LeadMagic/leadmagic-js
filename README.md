@@ -17,7 +17,7 @@ const { data, error } = await validateEmail("alex@example.com");
 if (data) console.log(data.verdict); // "deliverable" | "undeliverable" | "unknown"
 ```
 
-Set `LEADMAGIC_API_KEY` on your server. To try it without a key, set `LEADMAGIC_SANDBOX=1` for synthetic data that costs no credits.
+Set `LEADMAGIC_API_KEY` on your server. No key yet? [Create an API key](https://app.leadmagic.io/settings/api).
 
 ## What is in the package
 
@@ -35,16 +35,15 @@ It runs on Node.js 20+, Bun, Deno, Cloudflare Workers and Vercel Functions. Type
 - [Validate emails in Next.js forms](https://leadmagic.io/docs/sdk/nextjs-forms)
 - [Reference](https://leadmagic.io/docs/sdk/reference)
 - [Errors](https://leadmagic.io/docs/sdk/errors)
-- [Sandbox and testing](https://leadmagic.io/docs/sdk/sandbox)
 - [Keeping your key safe](https://leadmagic.io/docs/sdk/security)
 
 ## In this repository
 
-| Path                                           |                                                            |
-| ---------------------------------------------- | ---------------------------------------------------------- |
-| [`packages/leadmagic`](packages/leadmagic)     | The SDK                                                    |
-| [`examples/next-signup`](examples/next-signup) | A Next.js signup form that runs on the Sandbox with no key |
-| [`registry`](registry)                         | The email field you install with `npx shadcn add`          |
+| Path                                           |                                                   |
+| ---------------------------------------------- | ------------------------------------------------- |
+| [`packages/leadmagic`](packages/leadmagic)     | The SDK                                           |
+| [`examples/next-signup`](examples/next-signup) | A Next.js signup form built with shadcn/ui        |
+| [`registry`](registry)                         | The email field you install with `npx shadcn add` |
 
 ## Contributing and security
 

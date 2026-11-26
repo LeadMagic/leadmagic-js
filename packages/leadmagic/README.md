@@ -13,7 +13,7 @@ const { data, error } = await validateEmail("alex@example.com");
 if (data) console.log(data.verdict); // "deliverable" | "undeliverable" | "unknown"
 ```
 
-Set `LEADMAGIC_API_KEY` on your server. The SDK refuses to run in a browser with a key, and refuses `NEXT_PUBLIC_LEADMAGIC_API_KEY`. No key yet? Set `LEADMAGIC_SANDBOX=1` for synthetic data and no credits.
+Set `LEADMAGIC_API_KEY` on your server. The SDK refuses to run in a browser with a key, and refuses `NEXT_PUBLIC_LEADMAGIC_API_KEY`. No key yet? [Create an API key](https://app.leadmagic.io/settings/api).
 
 ## Next.js forms
 

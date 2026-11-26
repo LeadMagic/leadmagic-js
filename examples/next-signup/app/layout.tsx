@@ -4,7 +4,6 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Signup form with LeadMagic",
-  description: "Email validation on a Next.js form with the leadmagic SDK.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

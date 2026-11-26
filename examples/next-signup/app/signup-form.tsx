@@ -2,6 +2,7 @@
 
 import { useActionState, useCallback, useState } from "react";
 import { EmailField } from "@/components/email-field";
+import { Button } from "@/components/ui/button";
 import type { SignupState } from "./actions";
 import { signup } from "./actions";
 
@@ -31,13 +32,9 @@ export function SignupForm() {
         placeholder="you@company.com"
         required
       />
-      <button
-        className="bg-primary text-primary-foreground h-9 rounded-md px-4 text-sm font-medium disabled:opacity-50"
-        disabled={pending}
-        type="submit"
-      >
+      <Button className="w-full" disabled={pending} type="submit">
         {pending ? "Signing up…" : "Sign up"}
-      </button>
+      </Button>
     </form>
   );
 }
