@@ -154,7 +154,9 @@ jobs:
             exit 1
           fi
       - name: Stage
-        run: npm stage publish pack/*.tgz --provenance --access public
+        # The leading ./ matters: without it npm reads "pack/x.tgz" as a
+        # GitHub "user/repo" shorthand and tries to clone it.
+        run: npm stage publish ./pack/*.tgz --provenance --access public
       - name: Tag
         env:
           GH_TOKEN: ${{ github.token }}
