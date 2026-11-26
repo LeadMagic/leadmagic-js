@@ -28,6 +28,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
+      - name: Wire types match the API reference
+        run: pnpm generate:check
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
@@ -59,7 +61,7 @@ jobs:
   contract:
     name: Sandbox contract
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

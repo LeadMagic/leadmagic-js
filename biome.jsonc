@@ -13,7 +13,10 @@
       "!**/next-env.d.ts",
       "!public/r",
       // Written by changesets at release time, in its own formatting.
-      "!**/CHANGELOG.md"
+      "!**/CHANGELOG.md",
+      // Generated from the API reference; see packages/leadmagic-node/scripts.
+      "!packages/leadmagic-node/src/generated",
+      "!packages/leadmagic-node/spec"
     ]
   },
   "overrides": [
