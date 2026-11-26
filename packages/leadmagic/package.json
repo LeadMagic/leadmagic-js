@@ -1,6 +1,6 @@
 {
   "name": "leadmagic",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "LeadMagic for JavaScript: email validation and company lookup from your server, with a Next.js route handler and a React hook for forms.",
   "keywords": [
     "leadmagic",
