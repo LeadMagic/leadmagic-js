@@ -30,6 +30,7 @@ function handlerWith(fetchImpl: typeof fetch, extra = {}) {
 beforeEach(() => {
   vi.unstubAllEnvs();
   vi.stubEnv("LEADMAGIC_API_KEY", "");
+  vi.stubEnv("LEADMAGIC_SANDBOX", "");
 });
 
 afterEach(() => {

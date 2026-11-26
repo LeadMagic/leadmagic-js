@@ -35,6 +35,7 @@ It runs on Node.js 20+, Bun, Deno, Cloudflare Workers and Vercel Functions. Type
 - [Validate emails in Next.js forms](https://leadmagic.io/docs/sdk/nextjs-forms)
 - [Reference](https://leadmagic.io/docs/sdk/reference)
 - [Errors](https://leadmagic.io/docs/sdk/errors)
+- [Sandbox and testing](https://leadmagic.io/docs/sdk/sandbox)
 - [Keeping your key safe](https://leadmagic.io/docs/sdk/security)
 
 ## In this repository

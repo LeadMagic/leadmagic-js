@@ -13,7 +13,7 @@ import { validateEmailWith } from "./resources/email";
 export interface LeadMagicOptions {
   /** Defaults to `process.env.LEADMAGIC_API_KEY`. Never pass a key to browser code. */
   apiKey?: string;
-  /** Defaults to `https://api.leadmagic.io`. */
+  /** Defaults to `https://api.leadmagic.io`, or the Sandbox when `sandbox` is on. */
   baseUrl?: string;
   /** Custom fetch, e.g. for tests or proxies. Defaults to the global `fetch`. */
   fetch?: typeof fetch;
@@ -21,6 +21,11 @@ export interface LeadMagicOptions {
   headers?: Record<string, string>;
   /** Retries for 429, 502, 503, 504 and network errors. Default 2. */
   maxRetries?: number;
+  /**
+   * Use the public Sandbox: synthetic data, no key, no credits. Defaults to
+   * `LEADMAGIC_SANDBOX=1`.
+   */
+  sandbox?: boolean;
   /** Overall budget per call, retries included. Default 10000 ms. */
   timeoutMs?: number;
 }
@@ -33,6 +38,8 @@ export interface LeadMagicClient {
   ) => Promise<FindCompanyResult>;
   /** Credit balance. Free. */
   getCredits: (options?: RequestOptions) => Promise<GetCreditsResult>;
+  /** True when this client talks to the Sandbox. */
+  readonly sandbox: boolean;
   /** Validate one email address. 0.25 credits for `valid` or `invalid`; `unknown` is free. */
   validateEmail: (
     email: string,
@@ -68,6 +75,7 @@ function transport(options: LeadMagicOptions): TransportConfig {
 export function createClient(options: LeadMagicOptions = {}): LeadMagicClient {
   const config = transport(options);
   return {
+    sandbox: config.sandbox,
     validateEmail: (email, opts) => validateEmailWith(config, email, opts),
     findCompany: (input, opts) => findCompanyWith(config, input, opts),
     getCredits: (opts) => getCreditsWith(config, opts),

@@ -13,6 +13,7 @@ You need Node.js 20 or later and [pnpm](https://pnpm.io).
 ```bash
 pnpm install
 pnpm check            # lint, typecheck, tests, build and package checks
+pnpm test:contract    # the SDK against the public Sandbox (needs the network)
 pnpm -F next-signup-example dev
 ```
 

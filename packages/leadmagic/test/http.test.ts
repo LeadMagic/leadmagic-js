@@ -27,6 +27,7 @@ describe("responses", () => {
     expect(result.meta).toMatchObject({
       status: 200,
       requestId: "req_abc123",
+      sandbox: false,
       credits: { consumed: 0.25, remaining: 99.75 },
       rateLimit: { limit: 300, remaining: 299 },
     });
@@ -101,7 +102,7 @@ describe("error contract", () => {
     expect(error?.retryable).toBe(false);
   });
 
-  it("reads the errors[0] error shape", async () => {
+  it("reads the errors[0] shape the Sandbox sends", async () => {
     const mock = mockFetch({
       status: 402,
       body: {
