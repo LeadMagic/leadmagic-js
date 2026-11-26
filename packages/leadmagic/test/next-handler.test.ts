@@ -349,6 +349,60 @@ describe("rate limit", () => {
   });
 });
 
+describe("route options", () => {
+  it("skip answers unknown without calling LeadMagic", async () => {
+    const mock = mockFetch({ body: VALID_EMAIL_BODY });
+    const handler = handlerWith(mock.fetch, {
+      skip: (email: string) => email.endsWith("@ourcompany.com"),
+    });
+    const skipped = await handler(post({ email: "me@ourcompany.com" }));
+    expect(await skipped.json()).toEqual({
+      verdict: "unknown",
+      roleBased: false,
+    });
+    expect(mock.calls).toHaveLength(0);
+
+    const checked = await handler(post({ email: "ada@stripe.com" }));
+    expect(await checked.json()).toMatchObject({ verdict: "deliverable" });
+    expect(mock.calls).toHaveLength(1);
+  });
+
+  it("failOpen false answers 503 when LeadMagic cannot", async () => {
+    const mock = mockFetch({
+      status: 402,
+      body: problem(402, "insufficient_credits"),
+    });
+    const res = await handlerWith(mock.fetch, { failOpen: false })(
+      post({ email: "ada@stripe.com" })
+    );
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({
+      error: "Email validation is unavailable.",
+    });
+  });
+
+  it("failOpen false also covers the route's own rate limit", async () => {
+    const mock = mockFetch({ body: VALID_EMAIL_BODY });
+    const handler = handlerWith(mock.fetch, {
+      failOpen: false,
+      rateLimit: { total: 1 },
+    });
+    expect((await handler(post({ email: "a@stripe.com" }))).status).toBe(200);
+    expect((await handler(post({ email: "b@stripe.com" }))).status).toBe(503);
+  });
+
+  it("passes verificationPolicy to LeadMagic", async () => {
+    const mock = mockFetch({ body: VALID_EMAIL_BODY });
+    await handlerWith(mock.fetch, { verificationPolicy: "strict" })(
+      post({ email: "ada@stripe.com" })
+    );
+    expect(mock.calls[0]?.body).toMatchObject({
+      email: "ada@stripe.com",
+      verification_policy: "strict",
+    });
+  });
+});
+
 describe("hooks", () => {
   it("protect can refuse or answer", async () => {
     const mock = mockFetch({ body: VALID_EMAIL_BODY });

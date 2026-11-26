@@ -33,10 +33,17 @@ import type {
 import { createValidateEmailHandler } from "../src/next/index";
 import type {
   EmailFieldStatus,
+  EmailValidationQueryOptions,
+  EmailValidationResult,
+  LeadMagicProviderProps,
   UseEmailValidation,
   UseEmailValidationOptions,
 } from "../src/react/index";
-import { useEmailValidation } from "../src/react/index";
+import {
+  checkEmail,
+  emailValidationQueryOptions,
+  useEmailValidation,
+} from "../src/react/index";
 
 describe("public types", () => {
   it("methods resolve to their named result types", () => {
@@ -107,5 +114,28 @@ describe("public types", () => {
     expectTypeOf<
       UseEmailValidation["status"]
     >().toEqualTypeOf<EmailFieldStatus>();
+    expectTypeOf<UseEmailValidation["data"]>().toEqualTypeOf<
+      EmailValidationResult | undefined
+    >();
+    expectTypeOf<UseEmailValidation["error"]>().toEqualTypeOf<Error | null>();
+  });
+
+  it("the fetcher, the query options and the provider are typed", () => {
+    expectTypeOf(
+      checkEmail
+    ).returns.resolves.toEqualTypeOf<EmailValidationResult>();
+    expectTypeOf(
+      emailValidationQueryOptions
+    ).returns.toEqualTypeOf<EmailValidationQueryOptions>();
+    expectTypeOf<
+      EmailValidationResult["verdict"]
+    >().toEqualTypeOf<EmailVerdict>();
+    // Provider defaults are a subset of the hook's own options.
+    expectTypeOf<LeadMagicProviderProps["endpoint"]>().toEqualTypeOf<
+      UseEmailValidationOptions["endpoint"]
+    >();
+    expectTypeOf<LeadMagicProviderProps["queryFn"]>().toEqualTypeOf<
+      UseEmailValidationOptions["queryFn"]
+    >();
   });
 });

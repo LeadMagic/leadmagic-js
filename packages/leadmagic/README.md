@@ -38,13 +38,39 @@ Or install the ready-made field: `npx shadcn@latest add https://leadmagic.io/doc
 
 The route answers same-origin requests only, returns `{ verdict, roleBased }`, caches answers, caps checks per visitor and in total, and answers `unknown` when LeadMagic can't, so signups never block. Anyone who loads your page can call it, so add bot detection or a shared rate limiter with `protect`.
 
+### Options
+
+The hook takes options in the style of TanStack Query. Every one is optional:
+
+```tsx
+const email = useEmailValidation({
+  endpoint: "/api/forms/check-email", // wherever you mounted the route
+  validateOn: "change", // "blur" (default), "change" or "manual"
+  staleTime: 60_000, // reuse an answer for a minute
+  retry: 1,
+  headers: async () => ({ "x-bot-token": await getToken() }),
+  onSuccess: (result) => track("email_checked", result),
+});
+
+email.data; // { email, verdict, roleBased } | undefined
+email.error; // why the last check failed, or null
+email.isChecking; // also isDeliverable, isUndeliverable, isUnknown
+```
+
+- **No route?** Pass `queryFn` to call a server action or your own API instead: `useEmailValidation({ queryFn: (email) => checkEmailAction(email) })`.
+- **Shared defaults:** wrap your app in `<LeadMagicProvider endpoint="…">` to set options once. Fields under it share answers, so an address is asked about once.
+- **Already on TanStack Query?** `useQuery(emailValidationQueryOptions(email))` gives you its cache, retries and devtools.
+- **Another framework?** `checkEmail(email, options)` is the plain function underneath.
+
+The route has its own options too: `allowedOrigins`, `protect`, `rateLimit`, `cache`, `skip`, `failOpen`, `verificationPolicy`, `timeoutMs` and `onResult`. See the [reference](https://leadmagic.io/docs/sdk/nextjs-forms#route-options).
+
 ## Imports
 
-| Import            |                                                              |
-| ----------------- | ------------------------------------------------------------ |
-| `leadmagic`       | `validateEmail`, `findCompany`, `getCredits`, `createClient` |
-| `leadmagic/next`  | `createValidateEmailHandler`                                 |
-| `leadmagic/react` | `useEmailValidation`                                         |
+| Import            |                                                                                        |
+| ----------------- | -------------------------------------------------------------------------------------- |
+| `leadmagic`       | `validateEmail`, `findCompany`, `getCredits`, `createClient`                           |
+| `leadmagic/next`  | `createValidateEmailHandler`                                                           |
+| `leadmagic/react` | `useEmailValidation`, `LeadMagicProvider`, `checkEmail`, `emailValidationQueryOptions` |
 
 Every call returns `{ data, error, meta }` and never throws for API or network failures. Branch on `error.kind`: `config`, `auth`, `billing`, `rate_limit`, `invalid_input` or `unavailable`.
 
