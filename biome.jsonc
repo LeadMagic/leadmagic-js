@@ -11,7 +11,9 @@
       "!**/.next",
       "!**/node_modules",
       "!**/next-env.d.ts",
-      "!public/r"
+      "!public/r",
+      // Written by changesets at release time, in its own formatting.
+      "!**/CHANGELOG.md"
     ]
   },
   "overrides": [
