@@ -1,6 +1,6 @@
 import type { LeadMagicClient, LeadMagicOptions } from "../client";
 import { createClient } from "../client";
-import { readEnv } from "../env";
+import { readEnv, stripTrailingSlashes } from "../env";
 import { isLeadMagicError, LeadMagicError } from "../errors";
 import type { EmailVerdict } from "../resources/email";
 import { clientIp, WindowCounter } from "./rate-limit";
@@ -82,7 +82,6 @@ const BASE_HEADERS = {
   "cache-control": "no-store",
   "x-content-type-options": "nosniff",
 };
-const TRAILING_SLASHES = /\/+$/u;
 
 function json(
   body: unknown,
@@ -127,7 +126,7 @@ export function isAllowedOrigin(
     return true;
   }
   return allowedOrigins.some(
-    (allowed) => allowed.replace(TRAILING_SLASHES, "") === origin
+    (allowed) => stripTrailingSlashes(allowed) === origin
   );
 }
 

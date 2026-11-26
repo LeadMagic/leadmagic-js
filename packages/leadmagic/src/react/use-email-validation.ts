@@ -6,7 +6,7 @@ import {
   DEFAULT_STALE_TIME_MS,
   EmailCheckError,
   isVerdict,
-  LOOKS_LIKE_EMAIL,
+  looksLikeEmail,
 } from "./check-email";
 import type { CachedAnswer, CheckStore, PendingCheck } from "./provider";
 import { createCheckStore, useLeadMagicContext } from "./provider";
@@ -360,7 +360,7 @@ export function useEmailValidation(
         setState(IDLE);
         return Promise.resolve("unknown");
       }
-      if (!LOOKS_LIKE_EMAIL.test(value)) {
+      if (!looksLikeEmail(value)) {
         show({ email: value, verdict: "undeliverable", roleBased: false });
         return Promise.resolve("undeliverable");
       }

@@ -14,7 +14,6 @@ const PUBLIC_KEY_VARS = [
   "NUXT_PUBLIC_LEADMAGIC_API_KEY",
 ] as const;
 
-const TRAILING_SLASHES = /\/+$/u;
 /** Printable ASCII without spaces: what an HTTP header value can carry safely. */
 const HEADER_SAFE = /^[\x21-\x7e]+$/u;
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
@@ -30,6 +29,17 @@ function isSafeKeyDestination(baseUrl: string): boolean {
   } catch {
     return false;
   }
+}
+
+const SLASH = 47;
+
+/** Drops slashes from the end. A loop, so long input cannot slow it down. */
+export function stripTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === SLASH) {
+    end -= 1;
+  }
+  return value.slice(0, end);
 }
 
 /** Reads an env var without assuming `process` exists (Workers, Deno, browsers). */
@@ -79,11 +89,11 @@ let warnedSandbox = false;
  */
 export function resolveConfig(options: ResolveOptions = {}): ResolvedConfig {
   const sandbox = options.sandbox ?? truthy(readEnv("LEADMAGIC_SANDBOX"));
-  const baseUrl = (
+  const baseUrl = stripTrailingSlashes(
     options.baseUrl ??
-    readEnv("LEADMAGIC_BASE_URL") ??
-    (sandbox ? SANDBOX_BASE_URL : DEFAULT_BASE_URL)
-  ).replace(TRAILING_SLASHES, "");
+      readEnv("LEADMAGIC_BASE_URL") ??
+      (sandbox ? SANDBOX_BASE_URL : DEFAULT_BASE_URL)
+  );
 
   if (sandbox) {
     // The Sandbox needs no key and returns synthetic data, so it is safe anywhere.

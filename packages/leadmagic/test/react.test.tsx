@@ -522,4 +522,41 @@ describe("emailValidationQueryOptions", () => {
   it("stays disabled until the text looks like an address", () => {
     expect(emailValidationQueryOptions("ada@").enabled).toBe(false);
   });
+
+  it("judges the shape of an address the same way the old pattern did", () => {
+    const pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
+    const samples = [
+      "ada@stripe.com",
+      "a@b.co",
+      "first.last+tag@sub.example.co.uk",
+      "ada@stripe",
+      "ada@.com",
+      "ada@stripe.",
+      "ada@a.b",
+      "@stripe.com",
+      "ada@@stripe.com",
+      "ada@str ipe.com",
+      "ada stripe.com",
+      "ada@stripe..com",
+      "ada",
+      "",
+      "@",
+      "a@b",
+      "a@b.",
+      "a@.b",
+    ];
+    for (const sample of samples) {
+      expect([sample, emailValidationQueryOptions(sample).enabled]).toEqual([
+        sample,
+        pattern.test(sample),
+      ]);
+    }
+  });
+
+  it("turns down very long input at once", () => {
+    const hostile = `!@${"!.".repeat(200_000)}`;
+    const started = performance.now();
+    expect(emailValidationQueryOptions(hostile).enabled).toBe(false);
+    expect(performance.now() - started).toBeLessThan(50);
+  });
 });

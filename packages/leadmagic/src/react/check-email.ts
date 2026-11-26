@@ -2,7 +2,23 @@ import type { EmailVerdict } from "../resources/email";
 
 export const DEFAULT_ENDPOINT = "/api/leadmagic/validate-email";
 export const DEFAULT_STALE_TIME_MS: number = 10 * 60 * 1000;
-export const LOOKS_LIKE_EMAIL: RegExp = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
+const MAX_EMAIL_LENGTH = 320;
+const WHITESPACE = /\s/u;
+
+/**
+ * A quick shape check before asking the route: one `@`, no spaces, and a dot
+ * inside the domain. Plain string steps, so long input cannot slow it down.
+ */
+export function looksLikeEmail(value: string): boolean {
+  if (value.length > MAX_EMAIL_LENGTH || WHITESPACE.test(value)) {
+    return false;
+  }
+  const at = value.indexOf("@");
+  if (at < 1 || at !== value.lastIndexOf("@")) {
+    return false;
+  }
+  return value.slice(at + 2, -1).includes(".");
+}
 
 /** One answer from your validation route. */
 export interface EmailValidationResult {
@@ -162,7 +178,7 @@ export function emailValidationQueryOptions(
       value.toLowerCase(),
     ],
     queryFn: ({ signal }) => checkEmail(value, { ...request, signal }),
-    enabled: LOOKS_LIKE_EMAIL.test(value),
+    enabled: looksLikeEmail(value),
     staleTime,
   };
 }
