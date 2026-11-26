@@ -30,4 +30,4 @@ After changing `registry/email-field.tsx`, run `pnpm registry:build` so the exam
 
 ## Releases
 
-Maintainers release by merging the "release" pull request that the release workflow opens when changesets are waiting on `main`. Merging it publishes to npm with provenance.
+Maintainers release by merging the "release" pull request that the release workflow opens when changesets are waiting on `main`. Merging it stages the new version on npm with provenance. A maintainer then approves it on npmjs.com, and only then can it be installed.
