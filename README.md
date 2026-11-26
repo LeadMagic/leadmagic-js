@@ -17,7 +17,7 @@ const { data, error } = await validateEmail("alex@example.com");
 if (data) console.log(data.verdict); // "deliverable" | "undeliverable" | "unknown"
 ```
 
-Set `LEADMAGIC_API_KEY` on your server. To try it without a key, set `LEADMAGIC_SANDBOX=1` for synthetic data that costs no credits.
+Set `LEADMAGIC_API_KEY` on your server. No key yet? [Create an API key](https://app.leadmagic.io/settings/api).
 
 ## What is in the package
 
