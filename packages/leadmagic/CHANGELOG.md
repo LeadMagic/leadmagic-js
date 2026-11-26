@@ -1,5 +1,11 @@
 # leadmagic
 
+## 0.2.1
+
+### Patch Changes
+
+- b147f83: The README links to creating an API key.
+
 ## 0.2.0
 
 ### Minor Changes
