@@ -10,6 +10,8 @@ import type { AnalyticsResource, CreditsResource } from "./resources/account";
 import { createAnalytics, createCredits } from "./resources/account";
 import type { AdsResource } from "./resources/ads";
 import { createAds } from "./resources/ads";
+import type { BulkResource } from "./resources/bulk";
+import { createBulk } from "./resources/bulk";
 import type { CompaniesResource } from "./resources/companies";
 import { createCompanies } from "./resources/companies";
 import type { EmailResource } from "./resources/email";
@@ -75,6 +77,7 @@ function transport(options: LeadMagicOptions): TransportConfig {
 export class LeadMagic {
   readonly ads: AdsResource;
   readonly analytics: AnalyticsResource;
+  readonly bulk: BulkResource;
   readonly companies: CompaniesResource;
   readonly credits: CreditsResource;
   readonly email: EmailResource;
@@ -91,6 +94,7 @@ export class LeadMagic {
     this.sandbox = config.sandbox;
     this.ads = createAds(config);
     this.analytics = createAnalytics(config);
+    this.bulk = createBulk(config);
     this.companies = createCompanies(config);
     this.credits = createCredits(config);
     this.email = createEmail(config);

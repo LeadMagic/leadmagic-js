@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   adsSchemas,
   analyticsSchemas,
+  bulkSchemas,
   companiesSchemas,
   emailSchemas,
   localLeadsSchemas,
@@ -75,5 +76,37 @@ describe("zod schemas", () => {
     const standard = emailSchemas.validate["~standard"];
     expect(standard.vendor).toBe("zod");
     expect(standard.version).toBe(1);
+  });
+});
+
+describe("bulk schemas", () => {
+  it("accept a submission and keep the client's messages", () => {
+    expect(
+      bulkSchemas.submit.safeParse({
+        product: "email_validation",
+        rows: [{ email: "ada@stripe.com" }],
+        callback: { url: "https://example.com/hook", events: ["completed"] },
+      }).success
+    ).toBe(true);
+    const twoSources = bulkSchemas.submit.safeParse({
+      product: "email_validation",
+      rows: [{}],
+      csv: "email\na@b.com",
+    });
+    expect(messages(twoSources)).toEqual([
+      "Pass exactly one of rows, csv or fileUrl.",
+    ]);
+    expect(twoSources.error?.issues[0]?.path).toEqual(["rows"]);
+    const tooMany = bulkSchemas.localLeads.safeParse({
+      keywords: Array.from({ length: 11 }, (_, i) => `k${i}`),
+      cities: Array.from({ length: 10 }, (_, i) => `c${i}`),
+    });
+    expect(messages(tooMany)).toEqual([
+      "keywords × cities must be at most 100 searches. Split the job.",
+    ]);
+    expect(
+      messages(bulkSchemas.restart.safeParse({ mode: "from_row" }))
+    ).toEqual(["Pass startRowIndex with mode from_row."]);
+    expect(bulkSchemas.priority.safeParse(1001).success).toBe(false);
   });
 });

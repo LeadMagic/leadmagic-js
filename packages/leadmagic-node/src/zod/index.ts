@@ -12,6 +12,14 @@ import type { ApiRequest } from "../core/types";
 import type { DaysInput, SummaryInput } from "../resources/account";
 import type { AdsInput } from "../resources/ads";
 import type {
+  BulkListInput,
+  BulkLocalLeadsInput,
+  BulkRestartInput,
+  BulkRowsInput,
+  BulkSubmitInput,
+} from "../resources/bulk";
+import { checkLocalLeads, checkSubmission } from "../resources/bulk";
+import type {
   CompanyInput,
   LookalikesInput,
   SearchCompaniesInput,
@@ -287,6 +295,118 @@ export const analyticsSchemas = {
   day: date,
 } as const;
 
+/* Bulk ------------------------------------------------------------------------ */
+
+const record = z.record(z.string(), z.unknown());
+
+/** Adds the client's own check, with its message on the first field it names. */
+function sameCheck<T>(
+  check: (value: T) => { message: string; param: string[] } | null
+) {
+  return (value: unknown, ctx: z.RefinementCtx) => {
+    const problem = check(value as T);
+    if (problem) {
+      ctx.addIssue({
+        code: "custom",
+        message: problem.message,
+        path: problem.param[0]?.split(".") ?? [],
+      });
+    }
+  };
+}
+
+const bulkSubmit = z
+  .object({
+    product: text,
+    rows: z.array(record).optional(),
+    csv: optionalText,
+    fileUrl: z.string().trim().url().optional(),
+    format: z.enum(["csv", "json", "jsonl"]).optional(),
+    inputMapping: z
+      .record(
+        z.string(),
+        z.object({
+          source: z.string().optional(),
+          column: z.string().optional(),
+          value: z.unknown().optional(),
+        })
+      )
+      .optional(),
+    callback: z
+      .object({
+        url: z.string().trim().url(),
+        events: z
+          .array(z.enum(["completed", "failed", "canceled", "progress", "any"]))
+          .optional(),
+        inlineResults: z.boolean().optional(),
+        secret: z.string().min(1).optional(),
+        metadata: record.optional(),
+      })
+      .optional(),
+    metadata: record.optional(),
+    presetId: optionalText,
+    priority: z.number().int().min(-1000).max(1000).optional(),
+    fileName: optionalText,
+    allowDuplicate: z.boolean().optional(),
+  })
+  .superRefine(sameCheck<BulkSubmitInput>(checkSubmission))
+  .pipe(z.custom<BulkSubmitInput>());
+
+const bulkLocalLeads = z
+  .object({
+    keywords: z.array(text).min(1).max(25),
+    cities: z.array(text).min(1).max(100),
+    countryCodes: z.array(z.string().trim().length(2)).optional(),
+    fileName: optionalText,
+  })
+  .superRefine(sameCheck<BulkLocalLeadsInput>(checkLocalLeads));
+
+const bulkRows = z.object({
+  limit: z.number().int().min(1).max(1000).optional(),
+  offset: z.number().int().min(0).optional(),
+  status: optionalText,
+});
+
+const bulkRestart = z
+  .object({
+    mode: z
+      .enum(["full", "failed_only", "unstick", "from_row", "from_shard"])
+      .optional(),
+    startRowIndex: z.number().int().min(0).optional(),
+    startShardIndex: z.number().int().min(0).optional(),
+    recheckUnverified: z.boolean().optional(),
+  })
+  .refine((v) => v.mode !== "from_row" || v.startRowIndex !== undefined, {
+    message: "Pass startRowIndex with mode from_row.",
+    path: ["startRowIndex"],
+  })
+  .refine((v) => v.mode !== "from_shard" || v.startShardIndex !== undefined, {
+    message: "Pass startShardIndex with mode from_shard.",
+    path: ["startShardIndex"],
+  });
+
+export const bulkSchemas = {
+  submit: bulkSubmit,
+  validate: bulkSubmit,
+  localLeads: bulkLocalLeads,
+  quoteLocalLeads: bulkLocalLeads,
+  list: z.object({
+    limit: z.number().int().min(1).max(200).optional(),
+    offset: z.number().int().min(0).max(10_000).optional(),
+    product: optionalText,
+    status: optionalText,
+  }),
+  results: bulkRows,
+  errors: bulkRows.omit({ status: true }),
+  restart: bulkRestart,
+  priority: z
+    .number()
+    .int("priority must be a whole number from -1000 to 1000.")
+    .min(-1000, "priority must be a whole number from -1000 to 1000.")
+    .max(1000, "priority must be a whole number from -1000 to 1000."),
+  jobId: text,
+} as const;
+
 /* Every schema's output must be accepted by its method. A mismatch fails the typecheck. */
 type Accepts<Input, Schema extends z.ZodType> = [z.output<Schema>] extends [
   Input,
@@ -310,5 +430,10 @@ export type _InputContract = All<
     Accepts<AdsInput, typeof ads>,
     Accepts<DaysInput, typeof analyticsSchemas.days>,
     Accepts<SummaryInput, typeof analyticsSchemas.summary>,
+    Accepts<BulkSubmitInput, typeof bulkSubmit>,
+    Accepts<BulkLocalLeadsInput, typeof bulkLocalLeads>,
+    Accepts<BulkListInput, typeof bulkSchemas.list>,
+    Accepts<BulkRowsInput, typeof bulkRows>,
+    Accepts<BulkRestartInput, typeof bulkRestart>,
   ]
 >;

@@ -78,6 +78,8 @@ export interface Call {
   /** Path with any path parameters already encoded. */
   path: string;
   query?: Record<string, QueryValue>;
+  /** `text` returns the body as a string, e.g. a CSV download. Default `json`. */
+  responseType?: "json" | "text";
 }
 
 const RETRY_STATUSES = new Set([429, 502, 503, 504]);
@@ -177,8 +179,11 @@ function backoff(attempt: number): number {
   return exp / 2 + Math.random() * (exp / 2);
 }
 
-async function readBody(response: Response): Promise<unknown> {
+async function readBody(response: Response, asText: boolean): Promise<unknown> {
   const raw = await response.text();
+  if (asText && response.ok) {
+    return raw;
+  }
   if (!raw) {
     return;
   }
@@ -236,7 +241,10 @@ function buildHeaders(
   options: RequestOptions
 ): Record<string, string> {
   const headers: Record<string, string> = {
-    accept: "application/json",
+    accept:
+      call.responseType === "text"
+        ? "text/csv, text/plain, application/json"
+        : "application/json",
     ...config.headers,
     ...options.headers,
   };
@@ -308,7 +316,8 @@ async function attemptOnce(
   url: string,
   init: RequestInit,
   timeoutMs: number,
-  signal: AbortSignal | undefined
+  signal: AbortSignal | undefined,
+  asText: boolean
 ): Promise<Attempt> {
   const deadline = attemptSignal(timeoutMs, signal);
   try {
@@ -316,7 +325,7 @@ async function attemptOnce(
       ...init,
       signal: deadline.signal,
     });
-    return { ok: true, response, parsed: await readBody(response) };
+    return { ok: true, response, parsed: await readBody(response, asText) };
   } catch (cause) {
     const cancelled = signal?.aborted === true;
     return {
@@ -340,11 +349,15 @@ function settle<T>(
   response: Response,
   parsed: unknown,
   sandbox: boolean,
-  attempt: number
+  attempt: number,
+  asText: boolean
 ): { result: Result<T>; retryIn: number | null } {
   const meta = metaFrom(response, sandbox, parsed);
   if (response.ok) {
-    if (typeof parsed === "object" && parsed !== null) {
+    const readable = asText
+      ? typeof parsed === "string"
+      : typeof parsed === "object" && parsed !== null;
+    if (readable) {
       return {
         result: { data: parsed as T, error: null, meta },
         retryIn: null,
@@ -376,6 +389,7 @@ export async function send<T>(
   const timeoutMs = options.timeoutMs ?? config.timeoutMs;
   const maxRetries = Math.max(0, options.maxRetries ?? config.maxRetries);
   const url = buildUrl(config.baseUrl, call.path, call.query);
+  const asText = call.responseType === "text";
   const init: RequestInit = {
     method: call.method,
     headers: buildHeaders(config, call, options),
@@ -392,7 +406,8 @@ export async function send<T>(
       url,
       init,
       timeoutMs,
-      options.signal
+      options.signal,
+      asText
     );
     if (!outcome.ok) {
       if (outcome.cancelled || attempt >= maxRetries) {
@@ -409,7 +424,8 @@ export async function send<T>(
       outcome.response,
       outcome.parsed,
       config.sandbox,
-      attempt
+      attempt,
+      asText
     );
     if (retryIn === null || attempt >= maxRetries) {
       return result;
@@ -441,4 +457,56 @@ export function invalidInput<T>(
     }),
     meta,
   };
+}
+
+/**
+ * Opens a long-lived response, such as an event stream: one attempt, no
+ * timeout, no retries. Never throws.
+ */
+export async function open(
+  config: TransportConfig,
+  call: Call,
+  options: RequestOptions = {}
+): Promise<
+  | { error: null; response: Response }
+  | { error: LeadMagicError; response: null }
+> {
+  const headers = buildHeaders(config, call, options);
+  headers.accept = "text/event-stream";
+  try {
+    const response = await config.fetch(
+      buildUrl(config.baseUrl, call.path, call.query),
+      {
+        method: call.method,
+        headers,
+        signal: options.signal,
+        redirect: config.apiKey ? "manual" : "follow",
+      }
+    );
+    if (response.ok && response.body) {
+      return { error: null, response };
+    }
+    const parsed = await readBody(response, false);
+    return {
+      error: response.ok
+        ? clientError(
+            "unexpected_response",
+            "LeadMagic returned an empty stream.",
+            { status: response.status }
+          )
+        : errorFromResponse(response.status, parsed, response.headers),
+      response: null,
+    };
+  } catch (cause) {
+    return {
+      error: fetchError(
+        cause,
+        false,
+        options.signal?.aborted === true,
+        0,
+        config.apiKey
+      ),
+      response: null,
+    };
+  }
 }

@@ -165,3 +165,50 @@ export function invalidPage<T, Item>(
   const result = invalidInput<T>(config, message, param);
   return { ...(result as Failed), page: null };
 }
+
+/**
+ * Walks an offset-paginated list row by row. Throws the `LeadMagicError` of
+ * the first failed page.
+ */
+export async function* iterateOffset<Item>(
+  fetchPage: (
+    offset: number,
+    limit: number,
+    signal: AbortSignal | undefined
+  ) => Promise<PageResult<unknown, Item>>,
+  options: { maxItems?: number; pageSize?: number; signal?: AbortSignal },
+  maxPageSize: number
+): AsyncGenerator<Item, void, undefined> {
+  const max =
+    options.maxItems === undefined
+      ? Number.POSITIVE_INFINITY
+      : Math.max(0, Math.floor(options.maxItems));
+  const size = Math.min(
+    maxPageSize,
+    Math.max(1, options.pageSize ?? maxPageSize)
+  );
+  let seen = 0;
+  let offset = 0;
+  while (seen < max) {
+    // biome-ignore lint/performance/noAwaitInLoops: each page follows the previous one.
+    const result = await fetchPage(
+      offset,
+      Math.min(size, max - seen),
+      options.signal
+    );
+    if (result.error) {
+      throw result.error;
+    }
+    for (const item of result.page.items) {
+      if (seen >= max) {
+        return;
+      }
+      seen += 1;
+      yield item;
+    }
+    if (!(result.page.hasMore && result.page.nextOffset !== null)) {
+      return;
+    }
+    offset = result.page.nextOffset;
+  }
+}

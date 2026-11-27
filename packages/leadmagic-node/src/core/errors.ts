@@ -86,6 +86,8 @@ export type LeadMagicApiErrorCode =
   | "job_not_resumable"
   | "job_not_cancellable"
   | "job_not_restartable"
+  | "duplicate_job"
+  | "local_leads_submission_in_progress"
   // 413
   | "payload_too_large"
   // 429
@@ -108,7 +110,10 @@ export type LeadMagicApiErrorCode =
   | "deadline_insufficient"
   | "stats_unavailable"
   | "stream_unavailable"
-  | "upload_failed";
+  | "upload_failed"
+  | "local_leads_capacity"
+  | "local_leads_unavailable"
+  | "credit_charge_failed";
 
 export type LeadMagicErrorCode =
   | LeadMagicClientErrorCode
@@ -366,6 +371,10 @@ function problemObject(body: Obj | undefined): Obj | undefined {
   // A few routes answer `{ error: "some_code", message }`.
   if (typeof body.error === "string") {
     return { code: body.error, detail: body.message };
+  }
+  // A refused bulk restart answers 409 with `{ restarted: false, reason }`.
+  if (typeof body.reason === "string") {
+    return { detail: body.reason };
   }
 }
 
