@@ -23,13 +23,26 @@ describe("webhooks", () => {
       secret,
       headers: new Headers({ "X-LeadMagic-Signature": signature }),
     });
-    expect(fromHeaders?.event).toBe("job.completed");
+    expect(fromHeaders).toMatchObject({ event: "job.completed" });
     const fromNode = await verifyWebhook({
       body: new TextEncoder().encode(body),
       secret,
       headers: { "x-leadmagic-signature": [signature] },
     });
-    expect(fromNode?.jobId).toBe("6b09a269-0002-4000-8d74-de3a0fe9da1d");
+    expect(fromNode).toMatchObject({
+      jobId: "6b09a269-0002-4000-8d74-de3a0fe9da1d",
+    });
+  });
+
+  it("reads a batch client webhook, signed with a sha256= prefix", async () => {
+    const batchBody = JSON.stringify({ batchId: "b_1", status: "succeeded" });
+    const sig = createHmac("sha256", secret).update(batchBody).digest("hex");
+    const event = await verifyWebhook({
+      body: batchBody,
+      secret,
+      headers: { "x-leadmagic-signature": `sha256=${sig}` },
+    });
+    expect(event).toMatchObject({ batchId: "b_1", status: "succeeded" });
   });
 
   it.each([

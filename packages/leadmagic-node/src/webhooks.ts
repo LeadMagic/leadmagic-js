@@ -54,6 +54,19 @@ export interface BulkWebhook {
   timestamp: string;
 }
 
+/** The body a batch client webhook receives when a batch ends. */
+export interface BatchWebhook {
+  batchId: string;
+  clientId: string | null;
+  completedAt: string | null;
+  creditsConsumed: number;
+  failedItems: number;
+  metadata: Record<string, unknown> | null;
+  status: string;
+  succeededItems: number;
+  totalItems: number;
+}
+
 export const WEBHOOK_SIGNATURE_HEADER = "x-leadmagic-signature";
 
 type HeaderBag =
@@ -70,6 +83,7 @@ export interface VerifyWebhookInput {
 }
 
 const HEX = /^[0-9a-f]{64}$/u;
+const SHA256_PREFIX = /^sha256=/u;
 const encoder = new TextEncoder();
 
 function header(headers: HeaderBag, name: string): string | undefined {
@@ -133,9 +147,9 @@ function same(a: string, b: string): boolean {
 }
 
 /**
- * Checks a bulk webhook's `X-LeadMagic-Signature` and returns the parsed
- * body, or null when the signature is missing or wrong. Never throws for a
- * bad request.
+ * Checks a webhook's `X-LeadMagic-Signature` and returns the parsed body:
+ * a bulk job callback (`jobId`) or a batch client webhook (`batchId`). Null
+ * when the signature is missing or wrong. Never throws for a bad request.
  *
  * The signature covers the body only, with no timestamp, so it does not stop
  * a captured request from being replayed. Use `jobId` and `event` to ignore
@@ -143,11 +157,13 @@ function same(a: string, b: string): boolean {
  */
 export async function verifyWebhook(
   input: VerifyWebhookInput
-): Promise<BulkWebhook | null> {
+): Promise<BulkWebhook | BatchWebhook | null> {
   const secret = typeof input.secret === "string" ? input.secret.trim() : "";
+  // Batch client webhooks prefix the hex with `sha256=`; bulk callbacks do not.
   const signature = header(input.headers, WEBHOOK_SIGNATURE_HEADER)
     ?.trim()
-    .toLowerCase();
+    .toLowerCase()
+    .replace(SHA256_PREFIX, "");
   if (!(secret && signature && HEX.test(signature))) {
     return null;
   }
@@ -161,9 +177,15 @@ export async function verifyWebhook(
         ? input.body
         : new TextDecoder().decode(bytes(input.body));
     const parsed: unknown = JSON.parse(text);
-    return parsed && typeof parsed === "object" && "jobId" in parsed
-      ? (parsed as BulkWebhook)
-      : null;
+    if (parsed && typeof parsed === "object") {
+      if ("jobId" in parsed) {
+        return parsed as BulkWebhook;
+      }
+      if ("batchId" in parsed) {
+        return parsed as BatchWebhook;
+      }
+    }
+    return null;
   } catch {
     return null;
   }

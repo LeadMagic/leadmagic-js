@@ -67,6 +67,7 @@ export type LeadMagicApiErrorCode =
   // 402
   | "insufficient_credits"
   | "credits_frozen"
+  | "budget_exceeded"
   | "subscription_required"
   | "org_closed"
   // 404, 405, 410
@@ -87,9 +88,13 @@ export type LeadMagicApiErrorCode =
   | "job_not_cancellable"
   | "job_not_restartable"
   | "duplicate_job"
+  | "duplicate_idempotency_key"
+  | "billing_authorization_rejected"
   | "local_leads_submission_in_progress"
   // 413
   | "payload_too_large"
+  // 422
+  | "cross_batch_duplicate"
   // 429
   | "rate_limit_exceeded"
   | "daily_budget_exceeded"

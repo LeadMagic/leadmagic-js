@@ -35,6 +35,9 @@ if (error) {
 | `jobs`                 | `search`, `searchAll`, `export`, `resolveFilters`, `searchStats`, `stats`, `lookup.*`, `catalog.*`                                                                                                                     |
 | `ads`                  | `google`, `meta`, `b2b`, `b2bDetails`                                                                                                                                                                                  |
 | `bulk`                 | `submit`, `validate`, `wait`, `stream`, `get`, `list`, `results`, `resultsAll`, `errors`, `events`, `download`, `pause`, `resume`, `cancel`, `restart`, `setPriority`, `localLeads`, `quoteLocalLeads`, `capabilities` |
+| `batch`                | `submit`, `previewCost`, `wait`, `get`, `list`, `results`, `resultsAll`, `update`, `campaignMetrics`, `clients.*`, `providers.*`                                                                                       |
+| `budgets`              | `create`, `list`, `status`, `update`, `delete`                                                                                                                                                                         |
+| `suppressionLists`     | `create`, `list`, `get`, `delete`, `addEmails`, `removeEmails`                                                                                                                                                         |
 | `credits`, `analytics` | `credits.get`, `analytics.dashboard`, `usage`, `products`, `credits`, `summary`, `daily`, `day`                                                                                                                        |
 
 Anything else: `lm.request({ method, path, body })` sends it with the same key, retries and errors.
@@ -95,6 +98,23 @@ for await (const row of lm.bulk.resultsAll(job.jobId)) {
 - `submit` is not retried: the API does not de-duplicate submissions, so a retry after a lost response could bill the rows twice. After a `network_error` or `timeout`, check `bulk.list()` before submitting again.
 - `stream(jobId)` yields live progress and ends when the job does. A `closed` message means the stream stopped first: carry on with `wait`.
 - `download(jobId)` returns the results as CSV text.
+
+## Batches
+
+A batch is up to 500 calls to any mix of products in one request, run in the background. Use it for programmatic work; use bulk jobs for files.
+
+```ts
+const items = leads.map((lead) => ({ product: "email_finder", input: lead }));
+
+const { data: quote } = await lm.batch.previewCost({ items });
+const { data: batch } = await lm.batch.submit({ items, clientName: "Acme" });
+await lm.batch.wait(batch.batchId);
+for await (const item of lm.batch.resultsAll(batch.batchId)) {
+  console.log(item.itemIndex, item.status, item.result);
+}
+```
+
+Items are charged one by one as they succeed. `budgets` caps what a client (or a team member) can spend on batches: a batch over budget is refused with `budget_exceeded`. `suppressionLists` holds emails batches must skip: an item whose `input.email` is on any of your lists comes back `suppressed` and costs nothing.
 
 ### Webhooks
 

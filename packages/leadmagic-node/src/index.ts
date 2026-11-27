@@ -34,14 +34,18 @@ export type {
 export { VERSION } from "./core/version";
 export type * from "./resources/account";
 export type * from "./resources/ads";
+export type * from "./resources/batch";
+export { BATCH_FINAL_STATUSES } from "./resources/batch";
 export type * from "./resources/bulk";
 export { BULK_FINAL_STATUSES, isFinalStatus } from "./resources/bulk";
 export type * from "./resources/companies";
+export type * from "./resources/cost-control";
 export type * from "./resources/email";
 export type * from "./resources/jobs";
 export type * from "./resources/local-leads";
 export type * from "./resources/people";
 export {
+  type BatchWebhook,
   type BulkWebhook,
   type BulkWebhookEvent,
   signWebhook,

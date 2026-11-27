@@ -11,6 +11,8 @@ import { z } from "zod";
 import type { ApiRequest } from "../core/types";
 import type { DaysInput, SummaryInput } from "../resources/account";
 import type { AdsInput } from "../resources/ads";
+import type { BatchSubmitInput } from "../resources/batch";
+import { checkBatch } from "../resources/batch";
 import type {
   BulkListInput,
   BulkLocalLeadsInput,
@@ -24,6 +26,11 @@ import type {
   LookalikesInput,
   SearchCompaniesInput,
 } from "../resources/companies";
+import type {
+  CreateBudgetInput,
+  UpdateBudgetInput,
+} from "../resources/cost-control";
+import { checkBudget, checkEmails } from "../resources/cost-control";
 import type { FindEmailInput, ProfileUrlInput } from "../resources/email";
 import type { SearchJobsInput } from "../resources/jobs";
 import type { SearchLocalLeadsInput } from "../resources/local-leads";
@@ -407,6 +414,93 @@ export const bulkSchemas = {
   jobId: text,
 } as const;
 
+/* Batch and cost control ---------------------------------------------------- */
+
+const batchItem = z.object({
+  product: optionalText,
+  provider: z
+    .string()
+    .regex(/^ext:.+/u, "provider looks like ext:<providerId>.")
+    .optional()
+    .transform((v) => v as `ext:${string}` | undefined),
+  input: record,
+  clientId: optionalText,
+  clientName: optionalText,
+  metadata: record.optional(),
+});
+
+const batchSubmit = z
+  .object({
+    items: z.array(batchItem),
+    clientId: optionalText,
+    clientName: optionalText,
+    metadata: record.optional(),
+    priority: z.enum(["normal", "low"]).optional(),
+    webhookUrl: z.string().trim().url().optional(),
+  })
+  .superRefine(sameCheck<BatchSubmitInput>(checkBatch));
+
+export const batchSchemas = {
+  submit: batchSubmit,
+  previewCost: z.object({
+    items: z.array(batchItem).min(1).max(10_000),
+    clientId: optionalText,
+    clientName: optionalText,
+  }),
+  update: z
+    .object({ metadata: record.optional(), clientId: optionalText })
+    .refine((v) => v.metadata !== undefined || v.clientId !== undefined, {
+      message: "Pass metadata or clientId.",
+      path: ["metadata"],
+    }),
+  batchId: text,
+} as const;
+
+const period = z.enum(["monthly", "total"]);
+
+const createBudget = z
+  .object({
+    scope: z.enum(["client", "user"]),
+    scopeValue: text,
+    maxCredits: z.number().positive("maxCredits must be a number above 0."),
+    period: period.optional(),
+  })
+  .superRefine(sameCheck<CreateBudgetInput>((v) => checkBudget(v, true)));
+
+const updateBudget = z
+  .object({
+    maxCredits: z
+      .number()
+      .positive("maxCredits must be a number above 0.")
+      .optional(),
+    period: period.optional(),
+  })
+  .refine((v) => v.maxCredits !== undefined || v.period !== undefined, {
+    message: "Pass maxCredits or period.",
+    path: ["maxCredits"],
+  });
+
+export const budgetsSchemas = {
+  create: createBudget,
+  update: updateBudget,
+} as const;
+
+export const suppressionListsSchemas = {
+  listId: text,
+  emails: z.array(z.string().trim()).superRefine((emails, ctx) => {
+    const problem = checkEmails(emails);
+    if (problem) {
+      // The client names the field `emails.<i>`; here the array is the root.
+      const index = problem.param[0]?.split(".")[1];
+      ctx.addIssue({
+        code: "custom",
+        message: problem.message,
+        path: index === undefined ? [] : [Number(index)],
+      });
+    }
+  }),
+} as const;
+
 /* Every schema's output must be accepted by its method. A mismatch fails the typecheck. */
 type Accepts<Input, Schema extends z.ZodType> = [z.output<Schema>] extends [
   Input,
@@ -435,5 +529,8 @@ export type _InputContract = All<
     Accepts<BulkListInput, typeof bulkSchemas.list>,
     Accepts<BulkRowsInput, typeof bulkRows>,
     Accepts<BulkRestartInput, typeof bulkRestart>,
+    Accepts<BatchSubmitInput, typeof batchSubmit>,
+    Accepts<CreateBudgetInput, typeof createBudget>,
+    Accepts<UpdateBudgetInput, typeof updateBudget>,
   ]
 >;

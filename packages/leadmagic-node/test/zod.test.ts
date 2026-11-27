@@ -2,11 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   adsSchemas,
   analyticsSchemas,
+  batchSchemas,
+  budgetsSchemas,
   bulkSchemas,
   companiesSchemas,
   emailSchemas,
   localLeadsSchemas,
   peopleSchemas,
+  suppressionListsSchemas,
 } from "../src/zod/index";
 
 const messages = (result: {
@@ -108,5 +111,36 @@ describe("bulk schemas", () => {
       messages(bulkSchemas.restart.safeParse({ mode: "from_row" }))
     ).toEqual(["Pass startRowIndex with mode from_row."]);
     expect(bulkSchemas.priority.safeParse(1001).success).toBe(false);
+  });
+});
+
+describe("batch and cost-control schemas", () => {
+  it("accept valid input and keep the client's messages", () => {
+    const item = { product: "email_validation", input: { email: "a@b.com" } };
+    expect(batchSchemas.submit.safeParse({ items: [item] }).success).toBe(true);
+    const noInput = batchSchemas.submit.safeParse({
+      items: [{ product: "email_validation", input: {} }, { product: "x" }],
+    });
+    expect(noInput.success).toBe(false);
+    expect(messages(batchSchemas.submit.safeParse({ items: [] }))).toEqual([
+      "Pass 1 to 500 items.",
+    ]);
+    expect(
+      budgetsSchemas.create.safeParse({
+        scope: "client",
+        scopeValue: "cl_1",
+        maxCredits: 100,
+        period: "monthly",
+      }).success
+    ).toBe(true);
+    expect(messages(budgetsSchemas.update.safeParse({}))).toEqual([
+      "Pass maxCredits or period.",
+    ]);
+    const emails = suppressionListsSchemas.emails.safeParse([
+      "a@b.com",
+      "nope",
+    ]);
+    expect(messages(emails)).toEqual(["emails[1] is not an email address."]);
+    expect(emails.error?.issues[0]?.path).toEqual([1]);
   });
 });

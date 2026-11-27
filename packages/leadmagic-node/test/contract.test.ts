@@ -129,6 +129,54 @@ const CALLS: [
       }),
   ],
   [
+    "batch.submit",
+    () =>
+      lm.batch.submit({
+        items: [
+          { product: "email_validation", input: { email: "ada@stripe.com" } },
+        ],
+      }),
+  ],
+  ["batch.list", () => lm.batch.list({ limit: 2 })],
+  ["batch.get", () => lm.batch.get("6b09ac68-0001-4000-858a-6e2515d2f937")],
+  [
+    "batch.previewCost",
+    () =>
+      lm.batch.previewCost({
+        items: [{ product: "email_validation", input: { email: "a@b.com" } }],
+      }),
+  ],
+  ["batch.clients.create", () => lm.batch.clients.create({ name: "Acme" })],
+  ["batch.clients.list", () => lm.batch.clients.list()],
+  ["batch.providers.list", () => lm.batch.providers.list()],
+  [
+    "budgets.create",
+    () =>
+      lm.budgets.create({
+        scope: "client",
+        scopeValue: "cl_1",
+        maxCredits: 100,
+      }),
+  ],
+  ["budgets.list", () => lm.budgets.list()],
+  ["budgets.status", () => lm.budgets.status()],
+  ["budgets.update", () => lm.budgets.update("bud_1", { maxCredits: 200 })],
+  ["budgets.delete", () => lm.budgets.delete("bud_1")],
+  [
+    "suppressionLists.create",
+    () => lm.suppressionLists.create("contract-test", ["ada@stripe.com"]),
+  ],
+  ["suppressionLists.get", () => lm.suppressionLists.get("contract-test")],
+  [
+    "suppressionLists.addEmails",
+    () => lm.suppressionLists.addEmails("contract-test", ["grace@stripe.com"]),
+  ],
+  [
+    "suppressionLists.removeEmails",
+    () =>
+      lm.suppressionLists.removeEmails("contract-test", ["grace@stripe.com"]),
+  ],
+  [
     "bulk.quoteLocalLeads",
     () =>
       lm.bulk.quoteLocalLeads({ keywords: ["dentist"], cities: ["Austin"] }),

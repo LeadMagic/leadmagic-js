@@ -10,10 +10,20 @@ import type { AnalyticsResource, CreditsResource } from "./resources/account";
 import { createAnalytics, createCredits } from "./resources/account";
 import type { AdsResource } from "./resources/ads";
 import { createAds } from "./resources/ads";
+import type { BatchResource } from "./resources/batch";
+import { createBatch } from "./resources/batch";
 import type { BulkResource } from "./resources/bulk";
 import { createBulk } from "./resources/bulk";
 import type { CompaniesResource } from "./resources/companies";
 import { createCompanies } from "./resources/companies";
+import type {
+  BudgetsResource,
+  SuppressionListsResource,
+} from "./resources/cost-control";
+import {
+  createBudgets,
+  createSuppressionLists,
+} from "./resources/cost-control";
 import type { EmailResource } from "./resources/email";
 import { createEmail } from "./resources/email";
 import type { JobsResource } from "./resources/jobs";
@@ -77,6 +87,8 @@ function transport(options: LeadMagicOptions): TransportConfig {
 export class LeadMagic {
   readonly ads: AdsResource;
   readonly analytics: AnalyticsResource;
+  readonly batch: BatchResource;
+  readonly budgets: BudgetsResource;
   readonly bulk: BulkResource;
   readonly companies: CompaniesResource;
   readonly credits: CreditsResource;
@@ -84,6 +96,7 @@ export class LeadMagic {
   readonly jobs: JobsResource;
   readonly localLeads: LocalLeadsResource;
   readonly people: PeopleResource;
+  readonly suppressionLists: SuppressionListsResource;
   /** True when this client talks to the Sandbox. */
   readonly sandbox: boolean;
   readonly #config: TransportConfig;
@@ -94,6 +107,8 @@ export class LeadMagic {
     this.sandbox = config.sandbox;
     this.ads = createAds(config);
     this.analytics = createAnalytics(config);
+    this.batch = createBatch(config);
+    this.budgets = createBudgets(config);
     this.bulk = createBulk(config);
     this.companies = createCompanies(config);
     this.credits = createCredits(config);
@@ -101,6 +116,7 @@ export class LeadMagic {
     this.jobs = createJobs(config);
     this.localLeads = createLocalLeads(config);
     this.people = createPeople(config);
+    this.suppressionLists = createSuppressionLists(config);
   }
 
   /**
